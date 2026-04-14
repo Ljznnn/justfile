@@ -1,0 +1,883 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>UI 风格预览</title>
+  <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Caveat:wght@400;700&display=swap" rel="stylesheet">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
+
+    /* ===== 风格选择器 ===== */
+    .style-selector {
+      position: fixed;
+      top: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      gap: 8px;
+      z-index: 1000;
+      padding: 16px 24px;
+      background: rgba(0,0,0,0.85);
+      border-radius: 12px;
+      max-width: 95vw;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+    .style-btn {
+      padding: 8px 14px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 12px;
+      font-weight: 500;
+      transition: all 0.2s;
+      border: none;
+      white-space: nowrap;
+    }
+    .style-btn:hover { transform: scale(1.05); }
+    .style-btn.active { box-shadow: 0 0 0 2px rgba(255,255,255,0.4); }
+
+    /* ===== 1. 科技暗调 ===== */
+    .style-tech { background: #0a0f1a; }
+    .style-tech .style-btn { background: rgba(14, 165, 233, 0.2); color: #0ea5e9; border: 1px solid rgba(14,165,233,0.3); }
+    .style-tech .style-btn:hover { background: rgba(14,165,233,0.4); }
+
+    .tech-demo {
+      min-height: 100vh;
+      padding: 100px 40px 40px;
+      display: grid;
+      grid-template-columns: 240px 1fr;
+      gap: 0;
+    }
+    .tech-bg {
+      background: #0a0f1a;
+      position: relative;
+    }
+    .tech-bg::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image: linear-gradient(rgba(14,165,233,0.03) 1px, transparent 1px),
+                        linear-gradient(90deg, rgba(14,165,233,0.03) 1px, transparent 1px);
+      background-size: 50px 50px;
+    }
+    .tech-sidebar {
+      background: rgba(10,15,26,0.9);
+      border-right: 1px solid rgba(14,165,233,0.1);
+      padding: 20px;
+    }
+    .tech-nav-item {
+      padding: 12px 16px;
+      color: #94a3b8;
+      font-size: 14px;
+      border-radius: 8px;
+      margin-bottom: 8px;
+      cursor: pointer;
+      transition: all 0.2s;
+      border: 1px solid transparent;
+    }
+    .tech-nav-item:hover { color: #f1f5f9; background: rgba(14,165,233,0.1); }
+    .tech-nav-item.active { color: #0ea5e9; background: rgba(14,165,233,0.15); border-color: rgba(14,165,233,0.2); }
+    .tech-content { padding: 30px; }
+    .tech-card {
+      background: rgba(17,24,39,0.8);
+      border: 1px solid rgba(14,165,233,0.1);
+      border-radius: 12px;
+      padding: 24px;
+      transition: all 0.3s;
+      cursor: pointer;
+    }
+    .tech-card:hover {
+      border-color: rgba(14,165,233,0.3);
+      transform: translateY(-4px);
+      box-shadow: 0 0 30px rgba(14,165,233,0.1);
+    }
+    .tech-icon {
+      width: 48px; height: 48px;
+      background: rgba(14,165,233,0.1);
+      border: 1px solid rgba(14,165,233,0.2);
+      border-radius: 10px;
+      display: flex; align-items: center; justify-content: center;
+      margin-bottom: 16px;
+      color: #0ea5e9;
+    }
+    .tech-title { color: #f1f5f9; font-size: 16px; font-weight: 600; margin-bottom: 8px; }
+    .tech-desc { color: #64748b; font-size: 13px; }
+
+    /* ===== 2. 极简黑白 ===== */
+    .style-minimal { background: #000; }
+    .style-minimal .style-btn { background: #1a1a1a; color: #fff; border: 1px solid #333; }
+    .style-minimal .style-btn:hover { background: #222; border-color: #fff; }
+
+    .minimal-demo {
+      min-height: 100vh;
+      padding: 100px 40px 40px;
+      display: grid;
+      grid-template-columns: 200px 1fr;
+      gap: 0;
+      background: #000;
+    }
+    .minimal-sidebar { padding: 24px 16px; border-right: 1px solid #1a1a1a; }
+    .minimal-logo { color: #fff; font-size: 18px; font-weight: 700; margin-bottom: 32px; letter-spacing: -0.5px; }
+    .minimal-nav { color: #666; font-size: 13px; padding: 8px 12px; border-radius: 6px; margin-bottom: 4px; cursor: pointer; transition: all 0.15s; }
+    .minimal-nav:hover { color: #fff; background: #111; }
+    .minimal-nav.active { color: #fff; background: #1a1a1a; }
+    .minimal-content { padding: 40px; }
+    .minimal-card {
+      background: #0a0a0a;
+      border: 1px solid #1a1a1a;
+      border-radius: 8px;
+      padding: 20px;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .minimal-card:hover { border-color: #333; }
+    .minimal-icon { color: #fff; font-size: 20px; margin-bottom: 12px; }
+    .minimal-title { color: #fff; font-size: 14px; font-weight: 600; }
+    .minimal-desc { color: #555; font-size: 12px; margin-top: 4px; }
+
+    /* ===== 3. 玻璃拟态 ===== */
+    .style-glass { background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%); }
+    .style-glass .style-btn { background: rgba(255,255,255,0.1); color: #fff; border: 1px solid rgba(255,255,255,0.2); }
+    .style-glass .style-btn:hover { background: rgba(255,255,255,0.2); }
+
+    .glass-demo {
+      min-height: 100vh;
+      padding: 100px 40px 40px;
+      display: grid;
+      grid-template-columns: 240px 1fr;
+      gap: 0;
+      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+    }
+    .glass-sidebar {
+      background: rgba(255,255,255,0.05);
+      backdrop-filter: blur(20px);
+      border-right: 1px solid rgba(255,255,255,0.1);
+      padding: 24px;
+    }
+    .glass-nav {
+      color: rgba(255,255,255,0.6);
+      font-size: 14px;
+      padding: 10px 16px;
+      border-radius: 8px;
+      margin-bottom: 8px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .glass-nav:hover { color: #fff; background: rgba(255,255,255,0.1); }
+    .glass-nav.active { color: #e94560; background: rgba(233,69,96,0.2); }
+    .glass-content { padding: 30px; }
+    .glass-card {
+      background: rgba(255,255,255,0.08);
+      backdrop-filter: blur(20px);
+      border: 1px solid rgba(255,255,255,0.15);
+      border-radius: 16px;
+      padding: 24px;
+      cursor: pointer;
+      transition: all 0.3s;
+    }
+    .glass-card:hover {
+      background: rgba(255,255,255,0.12);
+      transform: translateY(-6px);
+      box-shadow: 0 20px 40px rgba(0,0,0,0.3);
+    }
+    .glass-icon { color: #e94560; font-size: 24px; margin-bottom: 16px; }
+    .glass-title { color: #fff; font-size: 16px; font-weight: 500; }
+    .glass-desc { color: rgba(255,255,255,0.5); font-size: 13px; margin-top: 8px; }
+
+    /* ===== 4. 赛博朋克 ===== */
+    .style-cyber { background: #0d0221; }
+    .style-cyber .style-btn { background: rgba(255,0,128,0.2); color: #ff0080; border: 1px solid #ff0080; }
+    .style-cyber .style-btn:hover { background: rgba(255,0,128,0.4); box-shadow: 0 0 20px rgba(255,0,128,0.5); }
+
+    .cyber-demo {
+      min-height: 100vh;
+      padding: 100px 40px 40px;
+      display: grid;
+      grid-template-columns: 240px 1fr;
+      gap: 0;
+      background: #0d0221;
+      position: relative;
+    }
+    .cyber-demo::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background: linear-gradient(transparent 0%, rgba(255,0,128,0.03) 50%, transparent 100%);
+      animation: scanline 8s linear infinite;
+    }
+    @keyframes scanline { 0% { transform: translateY(-100%); } 100% { transform: translateY(100%); } }
+    .cyber-sidebar {
+      background: rgba(13,2,33,0.8);
+      border-right: 2px solid #ff0080;
+      padding: 24px;
+      box-shadow: 0 0 30px rgba(255,0,128,0.2);
+    }
+    .cyber-nav {
+      color: #00ffff;
+      font-size: 14px;
+      padding: 10px 16px;
+      margin-bottom: 8px;
+      cursor: pointer;
+      transition: all 0.2s;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+    .cyber-nav:hover { color: #ff0080; text-shadow: 0 0 10px #ff0080; }
+    .cyber-nav.active { color: #ff0080; background: rgba(255,0,128,0.1); border-left: 3px solid #ff0080; }
+    .cyber-content { padding: 30px; }
+    .cyber-card {
+      background: rgba(13,2,33,0.6);
+      border: 1px solid #00ffff;
+      border-radius: 4px;
+      padding: 20px;
+      cursor: pointer;
+      transition: all 0.2s;
+      position: relative;
+    }
+    .cyber-card::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0;
+      width: 100%; height: 2px;
+      background: linear-gradient(90deg, #ff0080, #00ffff);
+    }
+    .cyber-card:hover {
+      border-color: #ff0080;
+      box-shadow: 0 0 20px rgba(255,0,128,0.4), inset 0 0 20px rgba(255,0,128,0.1);
+    }
+    .cyber-icon { color: #00ffff; font-size: 20px; margin-bottom: 12px; }
+    .cyber-card:hover .cyber-icon { color: #ff0080; }
+    .cyber-title { color: #fff; font-size: 14px; text-transform: uppercase; letter-spacing: 1px; }
+    .cyber-desc { color: #00ffff; font-size: 12px; margin-top: 8px; opacity: 0.7; }
+
+    /* ===== 5. 简约扁平 ===== */
+    .style-flat { background: #f5f5f5; }
+    .style-flat .style-btn { background: #2563eb; color: #fff; border: none; }
+    .style-flat .style-btn:hover { background: #1d4ed8; }
+
+    .flat-demo {
+      min-height: 100vh;
+      padding: 100px 40px 40px;
+      display: grid;
+      grid-template-columns: 220px 1fr;
+      gap: 0;
+      background: #f5f5f5;
+    }
+    .flat-sidebar { background: #fff; border-right: 1px solid #e5e5e5; padding: 24px; }
+    .flat-logo { color: #111; font-size: 20px; font-weight: 700; margin-bottom: 32px; }
+    .flat-nav { color: #666; font-size: 14px; padding: 10px 14px; border-radius: 8px; margin-bottom: 6px; cursor: pointer; transition: all 0.15s; }
+    .flat-nav:hover { color: #111; background: #f5f5f5; }
+    .flat-nav.active { color: #2563eb; background: #eff6ff; }
+    .flat-content { padding: 32px; }
+    .flat-card {
+      background: #fff;
+      border: 1px solid #e5e5e5;
+      border-radius: 12px;
+      padding: 20px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .flat-card:hover { border-color: #2563eb; box-shadow: 0 4px 12px rgba(0,0,0,0.08); }
+    .flat-icon { width: 40px; height: 40px; background: #2563eb; border-radius: 10px; display: flex; align-items: center; justify-content: center; color: #fff; margin-bottom: 12px; }
+    .flat-title { color: #111; font-size: 14px; font-weight: 600; }
+    .flat-desc { color: #666; font-size: 13px; margin-top: 6px; }
+
+    /* ===== 6. 苹果风格 ===== */
+    .style-apple { background: #ffffff; }
+    .style-apple .style-btn { background: #f1f1f1; color: #1d1d1f; border: 1px solid #d2d2d7; }
+    .style-apple .style-btn:hover { background: #e8e8ed; }
+
+    .apple-demo {
+      min-height: 100vh;
+      padding: 100px 40px 40px;
+      display: grid;
+      grid-template-columns: 240px 1fr;
+      gap: 0;
+      background: #fff;
+    }
+    .apple-sidebar { padding: 24px; border-right: 1px solid #d2d2d7; }
+    .apple-logo { font-size: 20px; font-weight: 600; color: #1d1d1f; margin-bottom: 32px; }
+    .apple-nav { color: #86868b; font-size: 13px; padding: 8px 12px; border-radius: 6px; margin-bottom: 4px; cursor: pointer; transition: all 0.2s; }
+    .apple-nav:hover { color: #1d1d1f; }
+    .apple-nav.active { color: #0071e3; font-weight: 500; }
+    .apple-content { padding: 32px; }
+    .apple-card {
+      background: #f5f5f7;
+      border-radius: 20px;
+      padding: 24px;
+      cursor: pointer;
+      transition: all 0.3s;
+    }
+    .apple-card:hover { transform: scale(1.02); box-shadow: 0 8px 30px rgba(0,0,0,0.12); }
+    .apple-icon { font-size: 32px; margin-bottom: 16px; }
+    .apple-title { color: #1d1d1f; font-size: 17px; font-weight: 600; }
+    .apple-desc { color: #86868b; font-size: 14px; margin-top: 8px; line-height: 1.5; }
+
+    /* ===== 7. 手绘风 ===== */
+    .style-sketch { background: #fefcf3; }
+    .style-sketch .style-btn { background: #fff; color: #2d2d2d; border: 2px solid #2d2d2d; border-radius: 12px 4px 8px 16px; }
+    .style-sketch .style-btn:hover { transform: rotate(-2deg); }
+
+    .sketch-demo {
+      min-height: 100vh;
+      padding: 100px 40px 40px;
+      display: grid;
+      grid-template-columns: 200px 1fr;
+      gap: 0;
+      background: #fefcf3;
+      background-image: url("data:image/svg+xml,%3Csvg width='100' height='100' viewBox='0 0 100 100' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M0 0h100v100H0z' fill='none'/%3E%3Cpath d='M20 20l60 60M80 20L20 80' stroke='%23e5e0d5' stroke-width='0.5' opacity='0.3'/%3E%3C/svg%3E");
+    }
+    .sketch-sidebar {
+      padding: 24px 16px;
+      border-right: 2px dashed #c4b8a8;
+      background: rgba(255,255,255,0.3);
+    }
+    .sketch-logo {
+      font-family: 'Caveat', cursive;
+      font-size: 28px;
+      color: #2d2d2d;
+      margin-bottom: 32px;
+      transform: rotate(-3deg);
+    }
+    .sketch-nav {
+      font-family: 'Caveat', cursive;
+      font-size: 18px;
+      color: #5a5a5a;
+      padding: 8px 12px;
+      margin-bottom: 12px;
+      cursor: pointer;
+      transition: all 0.2s;
+      border-radius: 8px 4px 12px 6px;
+      border: 1px solid transparent;
+    }
+    .sketch-nav:hover {
+      color: #2d2d2d;
+      background: rgba(255,255,255,0.5);
+      border: 1px dashed #a89888;
+      transform: rotate(1deg);
+    }
+    .sketch-nav.active {
+      color: #d35400;
+      background: rgba(211,84,0,0.1);
+      border: 2px solid #d35400;
+      border-radius: 4px 12px 8px 16px;
+      transform: rotate(-2deg);
+    }
+    .sketch-content { padding: 32px; }
+    .sketch-card {
+      background: #fff;
+      border: 2px solid #2d2d2d;
+      border-radius: 4px 20px 12px 28px;
+      padding: 20px;
+      cursor: pointer;
+      transition: all 0.2s;
+      position: relative;
+      box-shadow: 4px 4px 0 rgba(45,45,45,0.1);
+    }
+    .sketch-card::before {
+      content: '';
+      position: absolute;
+      top: -3px; left: -3px; right: 3px; bottom: 3px;
+      border: 1px dashed #a89888;
+      border-radius: 8px 24px 16px 32px;
+      pointer-events: none;
+    }
+    .sketch-card:hover {
+      transform: rotate(-1deg) translateY(-4px);
+      box-shadow: 6px 6px 0 rgba(45,45,45,0.15);
+    }
+    .sketch-icon {
+      font-family: 'Caveat', cursive;
+      font-size: 32px;
+      color: #d35400;
+      margin-bottom: 12px;
+      transform: rotate(-5deg);
+    }
+    .sketch-title {
+      font-family: 'Caveat', cursive;
+      font-size: 22px;
+      color: #2d2d2d;
+    }
+    .sketch-desc {
+      font-family: 'Caveat', cursive;
+      font-size: 16px;
+      color: #7a7a7a;
+      margin-top: 8px;
+    }
+
+    /* ===== 8. 像素风 ===== */
+    .style-pixel { background: #1a1c2c; }
+    .style-pixel .style-btn { background: #5d275d; color: #fffacd; border: 4px solid #3a1a3a; font-family: 'Press Start 2P', monospace; font-size: 10px; }
+    .style-pixel .style-btn:hover { background: #7a357a; box-shadow: 4px 4px 0 #3a1a3a; }
+
+    .pixel-demo {
+      min-height: 100vh;
+      padding: 100px 40px 40px;
+      display: grid;
+      grid-template-columns: 200px 1fr;
+      gap: 0;
+      background: #1a1c2c;
+      background-image: url("data:image/svg+xml,%3Csvg width='8' height='8' viewBox='0 0 8 8' xmlns='http://www.w3.org/2000/svg'%3E%3Crect x='0' y='0' width='4' height='4' fill='%23252938'/%3E%3Crect x='4' y='4' width='4' height='4' fill='%23252938'/%3E%3C/svg%3E");
+      background-size: 8px 8px;
+    }
+    .pixel-sidebar {
+      background: #262b38;
+      border-right: 4px solid #5d275d;
+      padding: 24px 16px;
+    }
+    .pixel-logo {
+      font-family: 'Press Start 2P', monospace;
+      font-size: 12px;
+      color: #fffacd;
+      margin-bottom: 32px;
+      text-shadow: 4px 4px 0 #3a1a3a;
+    }
+    .pixel-nav {
+      font-family: 'Press Start 2P', monospace;
+      font-size: 8px;
+      color: #a8a8a8;
+      padding: 12px 8px;
+      margin-bottom: 8px;
+      cursor: pointer;
+      transition: all 0.1s;
+      border-radius: 0;
+    }
+    .pixel-nav:hover {
+      color: #fffacd;
+      background: #3a1a3a;
+    }
+    .pixel-nav.active {
+      color: #ffcd4e;
+      background: #5d275d;
+      box-shadow: 4px 4px 0 #3a1a3a inset;
+    }
+    .pixel-content { padding: 32px; }
+    .pixel-card {
+      background: #262b38;
+      border: 4px solid #5d275d;
+      border-radius: 0;
+      padding: 16px;
+      cursor: pointer;
+      transition: all 0.1s;
+      box-shadow: 4px 4px 0 #3a1a3a;
+    }
+    .pixel-card:hover {
+      transform: translate(-2px, -2px);
+      box-shadow: 6px 6px 0 #3a1a3a;
+      border-color: #ffcd4e;
+    }
+    .pixel-icon {
+      font-family: 'Press Start 2P', monospace;
+      font-size: 16px;
+      color: #ffcd4e;
+      margin-bottom: 12px;
+    }
+    .pixel-title {
+      font-family: 'Press Start 2P', monospace;
+      font-size: 10px;
+      color: #fffacd;
+    }
+    .pixel-desc {
+      font-family: 'Press Start 2P', monospace;
+      font-size: 6px;
+      color: #a8a8a8;
+      margin-top: 8px;
+    }
+
+    /* ===== 9. 霓虹发光 ===== */
+    .style-neon { background: #0a0a0a; }
+    .style-neon .style-btn { background: transparent; color: #0ff; border: 1px solid #0ff; text-shadow: 0 0 10px #0ff; }
+    .style-neon .style-btn:hover { background: rgba(0,255,255,0.1); box-shadow: 0 0 20px #0ff, inset 0 0 20px rgba(0,255,255,0.1); }
+
+    .neon-demo {
+      min-height: 100vh;
+      padding: 100px 40px 40px;
+      display: grid;
+      grid-template-columns: 220px 1fr;
+      gap: 0;
+      background: #0a0a0a;
+    }
+    .neon-sidebar {
+      background: rgba(0,0,0,0.5);
+      border-right: 1px solid rgba(0,255,255,0.3);
+      padding: 24px;
+    }
+    .neon-logo {
+      font-size: 18px;
+      font-weight: 700;
+      color: #0ff;
+      margin-bottom: 32px;
+      text-shadow: 0 0 10px #0ff, 0 0 20px #0ff, 0 0 40px #0ff;
+    }
+    .neon-nav {
+      font-size: 14px;
+      color: rgba(255,255,255,0.5);
+      padding: 10px 14px;
+      margin-bottom: 8px;
+      cursor: pointer;
+      transition: all 0.3s;
+    }
+    .neon-nav:hover {
+      color: #f0f;
+      text-shadow: 0 0 10px #f0f;
+    }
+    .neon-nav.active {
+      color: #0ff;
+      background: rgba(0,255,255,0.1);
+      border-left: 2px solid #0ff;
+      text-shadow: 0 0 10px #0ff;
+      box-shadow: inset 0 0 20px rgba(0,255,255,0.1);
+    }
+    .neon-content { padding: 32px; }
+    .neon-card {
+      background: rgba(0,0,0,0.3);
+      border: 1px solid rgba(0,255,255,0.4);
+      border-radius: 8px;
+      padding: 20px;
+      cursor: pointer;
+      transition: all 0.3s;
+      position: relative;
+    }
+    .neon-card::before {
+      content: '';
+      position: absolute;
+      inset: -1px;
+      border-radius: 8px;
+      background: transparent;
+      box-shadow: 0 0 15px rgba(0,255,255,0.3), inset 0 0 15px rgba(0,255,255,0.1);
+      opacity: 0;
+      transition: opacity 0.3s;
+    }
+    .neon-card:hover::before { opacity: 1; }
+    .neon-card:hover { border-color: #f0f; }
+    .neon-icon {
+      font-size: 24px;
+      color: #0ff;
+      margin-bottom: 12px;
+      text-shadow: 0 0 15px #0ff;
+    }
+    .neon-card:hover .neon-icon { color: #f0f; text-shadow: 0 0 15px #f0f; }
+    .neon-title {
+      font-size: 14px;
+      font-weight: 600;
+      color: #0ff;
+      text-shadow: 0 0 8px rgba(0,255,255,0.5);
+    }
+    .neon-card:hover .neon-title { color: #f0f; text-shadow: 0 0 8px rgba(255,0,255,0.5); }
+    .neon-desc {
+      font-size: 12px;
+      color: rgba(255,255,255,0.5);
+      margin-top: 8px;
+    }
+
+    /* ===== 10. 水墨中国风 ===== */
+    .style-chinese { background: #f5f0e6; }
+    .style-chinese .style-btn { background: transparent; color: #2c2c2c; border: 1px solid #8b7355; font-family: 'Noto Serif SC', serif; }
+    .style-chinese .style-btn:hover { background: rgba(139,115,85,0.1); }
+
+    .chinese-demo {
+      min-height: 100vh;
+      padding: 100px 40px 40px;
+      display: grid;
+      grid-template-columns: 180px 1fr;
+      gap: 0;
+      background: #f5f0e6;
+      background-image: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Ccircle cx='30' cy='30' r='1' fill='%23c4b8a8' opacity='0.2'/%3E%3C/svg%3E");
+    }
+    .chinese-sidebar {
+      background: rgba(255,255,255,0.3);
+      border-right: 1px solid rgba(139,115,85,0.3);
+      padding: 24px 16px;
+    }
+    .chinese-logo {
+      font-family: 'Noto Serif SC', serif;
+      font-size: 24px;
+      color: #2c2c2c;
+      margin-bottom: 32px;
+      letter-spacing: 4px;
+    }
+    .chinese-nav {
+      font-family: 'Noto Serif SC', serif;
+      font-size: 14px;
+      color: #5a5a5a;
+      padding: 10px 12px;
+      margin-bottom: 12px;
+      cursor: pointer;
+      transition: all 0.2s;
+      letter-spacing: 2px;
+    }
+    .chinese-nav:hover {
+      color: #8b4513;
+      background: rgba(139,115,85,0.1);
+    }
+    .chinese-nav.active {
+      color: #8b4513;
+      border-bottom: 2px solid #8b4513;
+      font-weight: 600;
+    }
+    .chinese-content { padding: 40px; }
+    .chinese-card {
+      background: rgba(255,255,255,0.6);
+      border: 1px solid rgba(139,115,85,0.2);
+      border-radius: 0;
+      padding: 24px;
+      cursor: pointer;
+      transition: all 0.3s;
+      position: relative;
+    }
+    .chinese-card::before {
+      content: '';
+      position: absolute;
+      top: 8px; left: 8px; right: -8px; bottom: -8px;
+      border: 1px solid rgba(139,115,85,0.1);
+      z-index: -1;
+    }
+    .chinese-card:hover {
+      background: rgba(255,255,255,0.8);
+      transform: translateY(-4px);
+    }
+    .chinese-icon {
+      font-size: 28px;
+      color: #8b4513;
+      margin-bottom: 16px;
+    }
+    .chinese-title {
+      font-family: 'Noto Serif SC', serif;
+      font-size: 18px;
+      color: #2c2c2c;
+      letter-spacing: 2px;
+    }
+    .chinese-desc {
+      font-family: 'Noto Serif SC', serif;
+      font-size: 13px;
+      color: #5a5a5a;
+      margin-top: 10px;
+      letter-spacing: 1px;
+    }
+
+    /* ===== Grid布局 ===== */
+    .cards-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+    .cards-grid.tight { gap: 12px; }
+    .section-title { margin-bottom: 24px; font-size: 24px; }
+
+    /* ===== 隐藏未激活的风格 ===== */
+    .demo-container { display: none; }
+    .demo-container.active { display: grid; }
+  </style>
+</head>
+<body class="style-tech">
+  <!-- 风格选择器 -->
+  <div class="style-selector">
+    <button class="style-btn active" data-style="tech">科技暗调</button>
+    <button class="style-btn" data-style="minimal">极简黑白</button>
+    <button class="style-btn" data-style="glass">玻璃拟态</button>
+    <button class="style-btn" data-style="cyber">赛博朋克</button>
+    <button class="style-btn" data-style="flat">简约扁平</button>
+    <button class="style-btn" data-style="apple">苹果风格</button>
+    <button class="style-btn" data-style="sketch">手绘风</button>
+    <button class="style-btn" data-style="pixel">像素风</button>
+    <button class="style-btn" data-style="neon">霓虹发光</button>
+    <button class="style-btn" data-style="chinese">水墨中国</button>
+  </div>
+
+  <!-- 1. 科技暗调 -->
+  <div class="demo-container tech-demo active tech-bg">
+    <div class="tech-sidebar">
+      <div class="tech-nav-item active">首页</div>
+      <div class="tech-nav-item">图片处理</div>
+      <div class="tech-nav-item">办公处理</div>
+      <div class="tech-nav-item">设置</div>
+    </div>
+    <div class="tech-content">
+      <div class="section-title tech-title">JustFile</div>
+      <div class="cards-grid">
+        <div class="tech-card"><div class="tech-icon">◇</div><div class="tech-title">图片压缩</div><div class="tech-desc">智能压缩保持画质</div></div>
+        <div class="tech-card"><div class="tech-icon">△</div><div class="tech-title">图床上传</div><div class="tech-desc">上传到GitHub</div></div>
+        <div class="tech-card"><div class="tech-icon">□</div><div class="tech-title">PDF转换</div><div class="tech-desc">转Word文档</div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 2. 极简黑白 -->
+  <div class="demo-container minimal-demo">
+    <div class="minimal-sidebar">
+      <div class="minimal-logo">JustFile</div>
+      <div class="minimal-nav active">Home</div>
+      <div class="minimal-nav">Image</div>
+      <div class="minimal-nav">Office</div>
+      <div class="minimal-nav">Settings</div>
+    </div>
+    <div class="minimal-content">
+      <div class="cards-grid tight">
+        <div class="minimal-card"><div class="minimal-icon">◐</div><div class="minimal-title">图片压缩</div><div class="minimal-desc">智能压缩</div></div>
+        <div class="minimal-card"><div class="minimal-icon">◑</div><div class="minimal-title">图床上传</div><div class="minimal-desc">GitHub托管</div></div>
+        <div class="minimal-card"><div class="minimal-icon">◒</div><div class="minimal-title">PDF转换</div><div class="minimal-desc">格式转换</div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 3. 玻璃拟态 -->
+  <div class="demo-container glass-demo">
+    <div class="glass-sidebar">
+      <div class="glass-nav active">首页</div>
+      <div class="glass-nav">图片处理</div>
+      <div class="glass-nav">办公处理</div>
+      <div class="glass-nav">设置</div>
+    </div>
+    <div class="glass-content">
+      <div class="cards-grid">
+        <div class="glass-card"><div class="glass-icon">✦</div><div class="glass-title">图片压缩</div><div class="glass-desc">保持画质大幅压缩</div></div>
+        <div class="glass-card"><div class="glass-icon">✧</div><div class="glass-title">图床上传</div><div class="glass-desc">GitHub仓库托管</div></div>
+        <div class="glass-card"><div class="glass-icon">✶</div><div class="glass-title">PDF转换</div><div class="glass-desc">多格式互转</div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 4. 赛博朋克 -->
+  <div class="demo-container cyber-demo">
+    <div class="cyber-sidebar">
+      <div class="cyber-nav active">HOME</div>
+      <div class="cyber-nav">IMAGE</div>
+      <div class="cyber-nav">OFFICE</div>
+      <div class="cyber-nav">CONFIG</div>
+    </div>
+    <div class="cyber-content">
+      <div class="cards-grid tight">
+        <div class="cyber-card"><div class="cyber-icon">◈</div><div class="cyber-title">COMPRESS</div><div class="cyber-desc">Image optimization</div></div>
+        <div class="cyber-card"><div class="cyber-icon">◉</div><div class="cyber-title">UPLOAD</div><div class="cyber-desc">GitHub hosting</div></div>
+        <div class="cyber-card"><div class="cyber-icon">◎</div><div class="cyber-title">CONVERT</div><div class="cyber-desc">Format transform</div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 5. 简约扁平 -->
+  <div class="demo-container flat-demo">
+    <div class="flat-sidebar">
+      <div class="flat-logo">JustFile</div>
+      <div class="flat-nav active">首页</div>
+      <div class="flat-nav">图片处理</div>
+      <div class="flat-nav">办公处理</div>
+      <div class="flat-nav">设置</div>
+    </div>
+    <div class="flat-content">
+      <div class="cards-grid">
+        <div class="flat-card"><div class="flat-icon">◐</div><div class="flat-title">图片压缩</div><div class="flat-desc">智能压缩保持画质</div></div>
+        <div class="flat-card"><div class="flat-icon">◑</div><div class="flat-title">图床上传</div><div class="flat-desc">上传到GitHub仓库</div></div>
+        <div class="flat-card"><div class="flat-icon">◒</div><div class="flat-title">PDF转换</div><div class="flat-desc">转换为Word文档</div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 6. 苹果风格 -->
+  <div class="demo-container apple-demo">
+    <div class="apple-sidebar">
+      <div class="apple-logo">JustFile</div>
+      <div class="apple-nav active">首页</div>
+      <div class="apple-nav">图片处理</div>
+      <div class="apple-nav">办公处理</div>
+      <div class="apple-nav">设置</div>
+    </div>
+    <div class="apple-content">
+      <div class="cards-grid">
+        <div class="apple-card"><div class="apple-icon">🖼️</div><div class="apple-title">图片压缩</div><div class="apple-desc">智能压缩图片，保持画质的同时大幅减小文件体积</div></div>
+        <div class="apple-card"><div class="apple-icon">📤</div><div class="apple-title">图床上传</div><div class="apple-desc">上传图片到GitHub仓库，获取稳定可靠的访问链接</div></div>
+        <div class="apple-card"><div class="apple-icon">📄</div><div class="apple-title">PDF转换</div><div class="apple-desc">PDF转换为可编辑的Word文档</div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 7. 手绘风 -->
+  <div class="demo-container sketch-demo">
+    <div class="sketch-sidebar">
+      <div class="sketch-logo">JustFile</div>
+      <div class="sketch-nav active">首页</div>
+      <div class="sketch-nav">图片处理</div>
+      <div class="sketch-nav">办公处理</div>
+      <div class="sketch-nav">设置</div>
+    </div>
+    <div class="sketch-content">
+      <div class="cards-grid">
+        <div class="sketch-card"><div class="sketch-icon">✏️</div><div class="sketch-title">图片压缩</div><div class="sketch-desc">压缩图片~</div></div>
+        <div class="sketch-card"><div class="sketch-icon">📤</div><div class="sketch-title">图床上传</div><div class="sketch-desc">上传图片~</div></div>
+        <div class="sketch-card"><div class="sketch-icon">📄</div><div class="sketch-title">PDF转换</div><div class="sketch-desc">转换文档~</div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 8. 像素风 -->
+  <div class="demo-container pixel-demo">
+    <div class="pixel-sidebar">
+      <div class="pixel-logo">JustFile</div>
+      <div class="pixel-nav active">HOME</div>
+      <div class="pixel-nav">IMAGE</div>
+      <div class="pixel-nav">OFFICE</div>
+      <div class="pixel-nav">CONFIG</div>
+    </div>
+    <div class="pixel-content">
+      <div class="cards-grid tight">
+        <div class="pixel-card"><div class="pixel-icon">◈</div><div class="pixel-title">COMPRESS</div><div class="pixel-desc">Optimize</div></div>
+        <div class="pixel-card"><div class="pixel-icon">◉</div><div class="pixel-title">UPLOAD</div><div class="pixel-desc">Host</div></div>
+        <div class="pixel-card"><div class="pixel-icon">◎</div><div class="pixel-title">CONVERT</div><div class="pixel-desc">Transform</div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 9. 霓虹发光 -->
+  <div class="demo-container neon-demo">
+    <div class="neon-sidebar">
+      <div class="neon-logo">JustFile</div>
+      <div class="neon-nav active">首页</div>
+      <div class="neon-nav">图片处理</div>
+      <div class="neon-nav">办公处理</div>
+      <div class="neon-nav">设置</div>
+    </div>
+    <div class="neon-content">
+      <div class="cards-grid">
+        <div class="neon-card"><div class="neon-icon">◇</div><div class="neon-title">图片压缩</div><div class="neon-desc">智能压缩保持画质</div></div>
+        <div class="neon-card"><div class="neon-icon">△</div><div class="neon-title">图床上传</div><div class="neon-desc">上传到GitHub</div></div>
+        <div class="neon-card"><div class="neon-icon">□</div><div class="neon-title">PDF转换</div><div class="neon-desc">转Word文档</div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 10. 水墨中国风 -->
+  <div class="demo-container chinese-demo">
+    <div class="chinese-sidebar">
+      <div class="chinese-logo">墨痕</div>
+      <div class="chinese-nav active">首页</div>
+      <div class="chinese-nav">图片处理</div>
+      <div class="chinese-nav">办公处理</div>
+      <div class="chinese-nav">设置</div>
+    </div>
+    <div class="chinese-content">
+      <div class="cards-grid">
+        <div class="chinese-card"><div class="chinese-icon">墨</div><div class="chinese-title">图片压缩</div><div class="chinese-desc">智能压缩 保持画质</div></div>
+        <div class="chinese-card"><div class="chinese-icon">印</div><div class="chinese-title">图床上传</div><div class="chinese-desc">上传图片 托管存储</div></div>
+        <div class="chinese-card"><div class="chinese-icon">卷</div><div class="chinese-title">PDF转换</div><div class="chinese-desc">格式转换 文档处理</div></div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const buttons = document.querySelectorAll('.style-btn');
+    const demos = document.querySelectorAll('.demo-container');
+    const body = document.body;
+
+    buttons.forEach(btn => {
+      btn.addEventListener('click', () => {
+        const style = btn.dataset.style;
+
+        buttons.forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+
+        body.className = 'style-' + style;
+
+        demos.forEach(d => d.classList.remove('active'));
+        document.querySelector('.' + style + '-demo').classList.add('active');
+      });
+    });
+  </script>
+</body>
+</html>
