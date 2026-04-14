@@ -245,7 +245,7 @@ const clearResults = () => results.value = []
 
     <!-- 说明 -->
     <div v-if="results.length === 0 && !isProcessing" class="mt-4 theme-card p-4">
-      <p class="text-muted text-xs">支持 JPG、PNG、WebP 格式，纯本地压缩，无需 API Key，压缩可达 50-70%。</p>
+      <p class="text-muted text-xs">支持 JPG、PNG、WebP 格式，本地压缩，压缩可达 50-70%。</p>
     </div>
   </div>
 </template>
