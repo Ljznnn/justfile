@@ -19,6 +19,28 @@ export function registerIpcHandlers() {
     return result.filePath
   })
 
+  ipcMain.handle('folder:select', async () => {
+    const result = await dialog.showOpenDialog({
+      properties: ['openDirectory', 'createDirectory']
+    })
+    return result.filePaths[0] || null
+  })
+
+  ipcMain.handle('files:saveToFolder', async (_, folderPath: string, files: { name: string; data: string }[]) => {
+    for (const file of files) {
+      const filePath = path.join(folderPath, file.name)
+      const buffer = Buffer.from(file.data, 'base64')
+      fs.writeFileSync(filePath, buffer)
+    }
+    return true
+  })
+
+  ipcMain.handle('file:saveWithPath', async (_, filePath: string, data: string) => {
+    const buffer = Buffer.from(data, 'base64')
+    fs.writeFileSync(filePath, buffer)
+    return true
+  })
+
   ipcMain.handle('settings:get', async () => ({}))
   ipcMain.handle('settings:set', async (_, settings) => {
     console.log('Settings saved:', settings)

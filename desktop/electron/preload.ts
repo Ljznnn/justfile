@@ -22,6 +22,12 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.invoke('file:select', filters),
   saveFile: (defaultPath: string) =>
     ipcRenderer.invoke('file:save', defaultPath),
+  selectFolder: () =>
+    ipcRenderer.invoke('folder:select'),
+  saveFilesToFolder: (folderPath: string, files: { name: string; data: string }[]) =>
+    ipcRenderer.invoke('files:saveToFolder', folderPath, files),
+  saveFileWithPath: (filePath: string, data: string) =>
+    ipcRenderer.invoke('file:saveWithPath', filePath, data),
 
   // 设置
   getSettings: () => ipcRenderer.invoke('settings:get'),

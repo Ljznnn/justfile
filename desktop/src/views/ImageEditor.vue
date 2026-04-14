@@ -26,16 +26,47 @@ const handleFileSelect = async (files: File[]) => {
   isReady.value = true
 }
 
-const handleSave = (blob: Blob) => {
-  const url = URL.createObjectURL(blob)
-  const link = document.createElement('a')
-  link.href = url
-  link.download = originalFile.value?.name || 'edited-image.png'
-  document.body.appendChild(link)
-  link.click()
-  document.body.removeChild(link)
-  URL.revokeObjectURL(url)
-  ElMessage.success('图片已保存')
+// Blob 转 Base64
+const blobToBase64 = async (blob: Blob): Promise<string> => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onloadend = () => {
+      const base64 = reader.result as string
+      resolve(base64.split(',')[1])
+    }
+    reader.onerror = reject
+    reader.readAsDataURL(blob)
+  })
+}
+
+const handleSave = async (blob: Blob) => {
+  const filename = originalFile.value?.name || 'edited-image.png'
+
+  if (window.electronAPI?.saveFile) {
+    // Electron 环境：让用户选择保存位置
+    const savePath = await window.electronAPI.saveFile(filename)
+    if (!savePath) return
+
+    try {
+      const base64 = await blobToBase64(blob)
+      await window.electronAPI.saveFileWithPath(savePath, base64)
+      ElMessage.success(`已保存: ${filename}`)
+    } catch (e: any) {
+      console.error('保存失败:', e)
+      ElMessage.error(e.message || '保存失败')
+    }
+  } else {
+    // 非 Electron 环境
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = filename
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    URL.revokeObjectURL(url)
+    ElMessage.success(`已下载: ${filename}`)
+  }
 }
 
 const reset = () => {

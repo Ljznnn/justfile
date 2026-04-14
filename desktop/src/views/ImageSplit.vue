@@ -1,10 +1,12 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
+import { ElMessage } from 'element-plus'
 import UploadZone from '@/components/common/UploadZone.vue'
 import Icon from '@/components/common/Icon.vue'
-import { splitImage, formatFileSize, downloadFile } from '@/utils/imageProcessor'
+import { splitImage, downloadFile } from '@/utils/imageProcessor'
 
 interface SplitPiece {
+  blob: Blob
   url: string
   index: number
   row: number
@@ -65,6 +67,7 @@ const doSplit = async () => {
     })
 
     pieces.value = results.map(r => ({
+      blob: r.blob,
       url: r.url,
       index: r.index,
       row: r.row,
@@ -78,16 +81,72 @@ const doSplit = async () => {
 }
 
 // 下载单个
-const downloadOne = (piece: SplitPiece) => {
+const downloadOne = async (piece: SplitPiece) => {
   const ext = originalFile.value?.name.split('.').pop() || 'png'
-  downloadFile(piece.url, `piece_${piece.row + 1}_${piece.col + 1}.${ext}`)
+  const filename = `piece_${piece.row + 1}_${piece.col + 1}.${ext}`
+
+  if (window.electronAPI?.saveFile) {
+    // Electron 环境：让用户选择保存位置
+    const savePath = await window.electronAPI.saveFile(filename)
+    if (!savePath) return
+
+    try {
+      const base64 = await blobToBase64(piece.blob)
+      await window.electronAPI.saveFileWithPath(savePath, base64)
+      ElMessage.success(`已保存: ${filename}`)
+    } catch (e: any) {
+      console.error('保存失败:', e)
+      ElMessage.error(e.message || '保存失败')
+    }
+  } else {
+    // 非 Electron 环境
+    downloadFile(piece.url, filename)
+    ElMessage.success(`已下载: ${filename}`)
+  }
 }
 
-// 下载全部
-const downloadAll = () => {
-  pieces.value.forEach(piece => {
-    setTimeout(() => downloadOne(piece), piece.index * 100)
+// Blob 转 Base64
+const blobToBase64 = async (blob: Blob): Promise<string> => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onloadend = () => {
+      const base64 = reader.result as string
+      // 移除 data:image/xxx;base64, 前缀
+      resolve(base64.split(',')[1])
+    }
+    reader.onerror = reject
+    reader.readAsDataURL(blob)
   })
+}
+
+// 下载全部 - 选择文件夹并保存
+const downloadAll = async () => {
+  if (!window.electronAPI?.selectFolder) {
+    // 非 Electron 环境，使用原有方式
+    pieces.value.forEach(piece => {
+      setTimeout(() => downloadOne(piece), piece.index * 100)
+    })
+    return
+  }
+
+  try {
+    const folderPath = await window.electronAPI.selectFolder()
+    if (!folderPath) return
+
+    const ext = originalFile.value?.name.split('.').pop() || 'png'
+    const files = await Promise.all(
+      pieces.value.map(async piece => ({
+        name: `piece_${piece.row + 1}_${piece.col + 1}.${ext}`,
+        data: await blobToBase64(piece.blob)
+      }))
+    )
+
+    await window.electronAPI.saveFilesToFolder(folderPath, files)
+    ElMessage.success(`已保存 ${files.length} 张图片到: ${folderPath}`)
+  } catch (e: any) {
+    console.error('保存失败:', e)
+    ElMessage.error(e.message || '保存失败')
+  }
 }
 
 // 重置

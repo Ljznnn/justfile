@@ -12,6 +12,7 @@
   "dependencies": {
     "@element-plus/icons-vue": "^2.3.2",
     "axios": "^1.6.8",
+    "browser-image-compression": "^2.0.2",
     "element-plus": "^2.13.7",
     "jszip": "^3.10.1",
     "pinia": "^2.1.7",

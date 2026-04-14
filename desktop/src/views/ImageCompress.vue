@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed } from 'vue'
 import { ElMessage } from 'element-plus'
-import { useSettingsStore } from '@/stores/settings'
+import imageCompression from 'browser-image-compression'
 import UploadZone from '@/components/common/UploadZone.vue'
 import Icon from '@/components/common/Icon.vue'
 
@@ -10,17 +10,18 @@ interface Result {
   originalSize: number
   compressedSize: number
   savedPercent: number
-  outputPath: string
+  blob: Blob | null
   status: 'processing' | 'success' | 'error'
   error?: string
 }
 
-const settingsStore = useSettingsStore()
 const results = ref<Result[]>([])
 const isProcessing = ref(false)
-const showConfig = ref(false)
 
-onMounted(() => settingsStore.loadSettings())
+// 压缩选项
+const maxSizeMB = ref(1)
+const maxWidthOrHeight = ref(1920)
+const quality = ref(0.8)
 
 const formatSize = (bytes: number) => {
   if (bytes < 1024) return `${bytes} B`
@@ -32,37 +33,126 @@ const totalSaved = computed(() => formatSize(
   results.value.filter(r => r.status === 'success').reduce((sum, r) => sum + (r.originalSize - r.compressedSize), 0)
 ))
 
-const handleFileSelect = async (files: File[]) => {
-  if (!settingsStore.tinifyKey) {
-    showConfig.value = true
-    ElMessage.warning('请先配置 TinyPNG API Key')
-    return
-  }
+// Blob 转 Base64
+const blobToBase64 = async (blob: Blob): Promise<string> => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onloadend = () => {
+      const base64 = reader.result as string
+      resolve(base64.split(',')[1])
+    }
+    reader.onerror = reject
+    reader.readAsDataURL(blob)
+  })
+}
 
-  files.forEach(f => results.value.push({ file: f.name, originalSize: f.size, compressedSize: 0, savedPercent: 0, outputPath: '', status: 'processing' }))
+const handleFileSelect = async (files: File[]) => {
+  results.value = files.map(f => ({
+    file: f.name,
+    originalSize: f.size,
+    compressedSize: 0,
+    savedPercent: 0,
+    blob: null,
+    status: 'processing'
+  }))
   isProcessing.value = true
 
-  for (const file of files) {
-    const idx = results.value.findIndex(r => r.file === file.name && r.status === 'processing')
+  for (let i = 0; i < files.length; i++) {
+    const file = files[i]
     try {
-      const filePath = await window.electronAPI.selectFile([{ name: 'Images', extensions: ['jpg', 'jpeg', 'png', 'webp'] }])
-      const res = await window.electronAPI.compressImage(filePath[0], settingsStore.tinifyKey)
-      results.value[idx] = { ...results.value[idx], ...res, status: res.success ? 'success' : 'error', error: res.error }
+      const options = {
+        maxSizeMB: maxSizeMB.value,
+        maxWidthOrHeight: maxWidthOrHeight.value,
+        useWebWorker: true,
+        initialQuality: quality.value,
+        alwaysKeepResolution: true
+      }
+      const compressedBlob = await imageCompression(file, options)
+
+      // 如果压缩后反而变大，使用原图
+      const finalBlob = compressedBlob.size >= file.size ? file : compressedBlob
+      const savedBytes = file.size - finalBlob.size
+      const savedPercent = Math.round((savedBytes / file.size) * 100)
+
+      results.value[i] = {
+        ...results.value[i],
+        compressedSize: finalBlob.size,
+        savedPercent,
+        blob: finalBlob,
+        status: 'success'
+      }
     } catch (e: any) {
-      results.value[idx] = { ...results.value[idx], status: 'error', error: e.message }
+      results.value[i] = {
+        ...results.value[i],
+        status: 'error',
+        error: e.message || '压缩失败'
+      }
     }
   }
 
   isProcessing.value = false
 }
 
-const clearResults = () => results.value = []
+const downloadResult = async (r: Result) => {
+  if (!r.blob) return
 
-const saveConfig = async () => {
-  await settingsStore.saveSetting('tinifyKey', settingsStore.tinifyKey)
-  ElMessage.success('配置已保存')
-  showConfig.value = false
+  const filename = r.file.replace(/\.[^.]+$/, '_compressed.' + r.file.split('.').pop())
+
+  if (window.electronAPI?.saveFile) {
+    const savePath = await window.electronAPI.saveFile(filename)
+    if (!savePath) return
+
+    try {
+      const base64 = await blobToBase64(r.blob)
+      await window.electronAPI.saveFileWithPath(savePath, base64)
+      ElMessage.success(`已保存: ${filename}`)
+    } catch (e: any) {
+      ElMessage.error(e.message || '保存失败')
+    }
+  } else {
+    const url = URL.createObjectURL(r.blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = filename
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    URL.revokeObjectURL(url)
+    ElMessage.success(`已下载: ${filename}`)
+  }
 }
+
+const downloadAll = async () => {
+  const successResults = results.value.filter(r => r.status === 'success' && r.blob)
+  if (successResults.length === 0) return
+
+  if (window.electronAPI?.selectFolder) {
+    const folderPath = await window.electronAPI.selectFolder()
+    if (!folderPath) return
+
+    try {
+      const files = await Promise.all(
+        successResults.map(async r => {
+          const filename = r.file.replace(/\.[^.]+$/, '_compressed.' + r.file.split('.').pop())
+          return {
+            name: filename,
+            data: await blobToBase64(r.blob!)
+          }
+        })
+      )
+      await window.electronAPI.saveFilesToFolder(folderPath, files)
+      ElMessage.success(`已保存 ${files.length} 张图片到: ${folderPath}`)
+    } catch (e: any) {
+      ElMessage.error(e.message || '保存失败')
+    }
+  } else {
+    for (const r of successResults) {
+      await downloadResult(r)
+    }
+  }
+}
+
+const clearResults = () => results.value = []
 </script>
 
 <template>
@@ -76,36 +166,22 @@ const saveConfig = async () => {
     <!-- 标题 -->
     <h1 class="text-primary font-semibold mb-4 title-line" style="font-size: var(--font-size-title)">图片压缩</h1>
 
-    <!-- 配置区域 -->
+    <!-- 压缩参数 -->
     <div class="theme-card p-4 mb-4">
-      <div class="flex items-center justify-between">
+      <div class="flex flex-wrap items-center gap-4">
         <div class="flex items-center gap-2">
-          <Icon name="settings-3-line" :size="16" class="text-accent" />
-          <span class="text-secondary text-sm">API 配置</span>
-          <span v-if="settingsStore.tinifyKey" class="text-xs text-green-400">已配置</span>
-          <span v-else class="text-xs text-red-400">未配置</span>
+          <span class="text-muted text-xs">最大大小</span>
+          <input v-model.number="maxSizeMB" type="number" min="0.1" max="10" step="0.1" class="theme-input w-16 px-2 py-1 text-xs text-center">
+          <span class="text-muted text-xs">MB</span>
         </div>
-        <button @click="showConfig = !showConfig" class="theme-button px-2 py-1 text-xs">
-          <Icon :name="showConfig ? 'arrow-up-s-line' : 'arrow-down-s-line'" :size="14" />
-        </button>
-      </div>
-
-      <!-- 配置表单 -->
-      <div v-if="showConfig" class="mt-3 pt-3 border-t border-[var(--border-color)]">
-        <label class="block text-muted text-xs mb-1.5">TinyPNG API Key</label>
-        <input
-          v-model="settingsStore.tinifyKey"
-          type="password"
-          placeholder="输入 API Key"
-          class="w-full theme-input px-3 py-2 text-sm mb-2"
-        />
-        <div class="flex items-center justify-between">
-          <a href="https://tinify.com/developers" target="_blank" class="text-accent hover:underline text-xs">
-            获取 API Key
-          </a>
-          <button @click="saveConfig" class="theme-button-primary px-3 py-1.5 text-xs">
-            保存配置
-          </button>
+        <div class="flex items-center gap-2">
+          <span class="text-muted text-xs">最大尺寸</span>
+          <input v-model.number="maxWidthOrHeight" type="number" min="100" max="4096" step="100" class="theme-input w-20 px-2 py-1 text-xs text-center">
+          <span class="text-muted text-xs">px</span>
+        </div>
+        <div class="flex items-center gap-2">
+          <span class="text-muted text-xs">质量</span>
+          <input v-model.number="quality" type="number" min="0.1" max="1" step="0.1" class="theme-input w-16 px-2 py-1 text-xs text-center">
         </div>
       </div>
     </div>
@@ -117,7 +193,7 @@ const saveConfig = async () => {
     <div v-if="isProcessing" class="mt-4 text-center">
       <div class="theme-card inline-flex items-center gap-2 px-4 py-2">
         <div class="w-4 h-4 border border-accent border-t-transparent rounded-full animate-spin"></div>
-        <span class="text-secondary text-sm">处理中...</span>
+        <span class="text-secondary text-sm">压缩中...</span>
       </div>
     </div>
 
@@ -125,7 +201,16 @@ const saveConfig = async () => {
     <div v-if="results.length > 0" class="mt-4">
       <div class="theme-card p-3 mb-3 flex items-center justify-between">
         <span class="text-muted text-xs">{{ results.filter(r => r.status !== 'processing').length }} 个文件</span>
-        <span class="text-accent text-sm font-medium">节省 {{ totalSaved }}</span>
+        <div class="flex items-center gap-3">
+          <span class="text-accent text-sm font-medium">节省 {{ totalSaved }}</span>
+          <button
+            v-if="results.some(r => r.status === 'success')"
+            @click="downloadAll"
+            class="theme-button-primary px-3 py-1.5 text-xs"
+          >
+            下载全部
+          </button>
+        </div>
       </div>
 
       <div class="space-y-2">
@@ -143,7 +228,12 @@ const saveConfig = async () => {
           </div>
           <div v-if="r.status === 'success'" class="flex items-center gap-3">
             <p class="text-muted text-xs">{{ formatSize(r.originalSize) }} → {{ formatSize(r.compressedSize) }}</p>
-            <span class="text-accent text-sm font-medium">-{{ r.savedPercent }}%</span>
+            <span v-if="r.savedPercent > 0" class="text-accent text-sm font-medium">-{{ r.savedPercent }}%</span>
+            <span v-else-if="r.savedPercent < 0" class="text-red-400 text-sm font-medium">+{{ Math.abs(r.savedPercent) }}%</span>
+            <span v-else class="text-muted text-sm font-medium">0%</span>
+            <button @click="downloadResult(r)" class="theme-button px-2 py-1 text-xs">
+              <Icon name="download-line" :size="14" />
+            </button>
           </div>
         </div>
       </div>
@@ -155,7 +245,7 @@ const saveConfig = async () => {
 
     <!-- 说明 -->
     <div v-if="results.length === 0 && !isProcessing" class="mt-4 theme-card p-4">
-      <p class="text-muted text-xs">支持 JPG、PNG、WebP 格式，压缩可达 50-70%。使用 TinyPNG API 进行无损压缩。</p>
+      <p class="text-muted text-xs">支持 JPG、PNG、WebP 格式，纯本地压缩，无需 API Key，压缩可达 50-70%。</p>
     </div>
   </div>
 </template>

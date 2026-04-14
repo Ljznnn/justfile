@@ -1,5 +1,21 @@
 /// <reference types="vite/client" />
 
+// browser-image-compression 类型声明
+declare module 'browser-image-compression' {
+  interface Options {
+    maxSizeMB?: number
+    maxWidthOrHeight?: number
+    useWebWorker?: boolean
+    initialQuality?: number
+    alwaysKeepResolution?: boolean
+    onProgress?: (progress: number) => void
+    fileType?: string
+  }
+
+  function imageCompression(file: File, options: Options): Promise<File>
+  export default imageCompression
+}
+
 // tui-image-editor 类型声明
 declare module 'tui-image-editor' {
   interface ImageEditorOptions {
@@ -82,6 +98,9 @@ interface ElectronAPI {
   convertPdf: (filePath: string, targetFormat: string, apiKey: string) => Promise<ConvertResult>
   selectFile: (filters: FileFilter[]) => Promise<string[]>
   saveFile: (defaultPath: string) => Promise<string>
+  selectFolder: () => Promise<string | null>
+  saveFilesToFolder: (folderPath: string, files: { name: string; data: string }[]) => Promise<boolean>
+  saveFileWithPath: (filePath: string, data: string) => Promise<boolean>
   getSettings: () => Promise<Settings>
   setSettings: (settings: Settings) => Promise<void>
 }
