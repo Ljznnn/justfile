@@ -1,5 +1,40 @@
 /// <reference types="vite/client" />
 
+// tus-js-client 类型声明
+declare module 'tus-js-client' {
+  interface UploadOptions {
+    endpoint: string
+    uploadUrl?: string
+    metadata?: Record<string, string>
+    headers?: Record<string, string>
+    chunkSize?: number
+    retryDelays?: number[]
+    onError?: (error: Error) => void
+    onProgress?: (bytesUploaded: number, bytesTotal: number) => void
+    onSuccess?: () => void
+    onBeforeRequest?: (req: any) => void
+    onShouldRetry?: (err: Error, retryCount: number, options: UploadOptions) => boolean
+  }
+
+  class Upload {
+    constructor(file: File, options: UploadOptions)
+    start(): void
+    abort(): void
+    findPreviousUploads(): Promise<PreviousUpload[]>
+    resumeFromPreviousUpload(upload: PreviousUpload): void
+    options: UploadOptions
+  }
+
+  interface PreviousUpload {
+    url: string
+    metadata: Record<string, string>
+    creationTime: string
+    size: number
+  }
+
+  export { Upload, UploadOptions, PreviousUpload }
+}
+
 // browser-image-compression 类型声明
 declare module 'browser-image-compression' {
   interface Options {
@@ -49,6 +84,9 @@ interface UploadConfig {
   branch: string
   token: string
   path: string
+  timestampRename: boolean
+  customDomain: string
+  allowOverwrite: boolean
 }
 
 interface FileFilter {
@@ -57,12 +95,24 @@ interface FileFilter {
 }
 
 interface Settings {
-  tinifyKey?: string
-  githubToken?: string
-  githubRepo?: string
-  githubBranch?: string
-  githubPath?: string
-  pdfApiKey?: string
+  compress?: {
+    tinifyKey?: string
+  }
+  upload?: {
+    githubToken?: string
+    githubRepo?: string
+    githubBranch?: string
+    githubPath?: string
+    timestampRename?: boolean
+    customDomain?: string
+    allowOverwrite?: boolean
+  }
+  pdf?: {
+    apiKey?: string
+  }
+  theme?: {
+    current?: string
+  }
 }
 
 interface CompressionResult {
@@ -102,7 +152,7 @@ interface ElectronAPI {
   saveFilesToFolder: (folderPath: string, files: { name: string; data: string }[]) => Promise<boolean>
   saveFileWithPath: (filePath: string, data: string) => Promise<boolean>
   getSettings: () => Promise<Settings>
-  setSettings: (settings: Settings) => Promise<void>
+  setSettings: (settings: Record<string, string | boolean>) => Promise<void>
 }
 
 declare global {

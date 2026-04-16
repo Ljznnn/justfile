@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain } from 'electron'
+import { app, BrowserWindow, ipcMain, shell } from 'electron'
 import { join } from 'path'
 import { registerIpcHandlers } from './ipc/index'
 import { registerImageIpcHandlers } from './ipc/image'
@@ -27,6 +27,14 @@ function createWindow(): void {
 
   mainWindow.on('ready-to-show', () => {
     mainWindow.show()
+  })
+
+  // 让外部链接在默认浏览器中打开
+  mainWindow.webContents.setWindowOpenHandler(({ url }) => {
+    if (url.startsWith('http://') || url.startsWith('https://')) {
+      shell.openExternal(url)
+    }
+    return { action: 'deny' }
   })
 
   if (isDev) {

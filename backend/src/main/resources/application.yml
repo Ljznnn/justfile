@@ -1,0 +1,71 @@
+server:
+  port: 8080
+  servlet:
+    context-path: /justfile
+
+spring:
+  context:
+    path:  /
+  application:
+    name: justfile
+  datasource:
+    url: jdbc:mysql://nano:3306/justfile?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai
+    username: ${DB_USERNAME:ljz}
+    password: ${DB_PASSWORD:1234qwer}
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    hikari:
+      minimum-idle: 5
+      maximum-pool-size: 20
+      idle-timeout: 30000
+      pool-name: JustFileSharePool
+      max-lifetime: 1800000
+      connection-timeout: 30000
+
+  jackson:
+    date-format: yyyy-MM-dd HH:mm:ss
+    time-zone: Asia/Shanghai
+    serialization:
+      write-dates-as-timestamps: false
+
+mybatis-plus:
+  mapper-locations: classpath:mapper/*.xml
+  type-aliases-package: com.justfile.entity
+  configuration:
+    map-underscore-to-camel-case: true
+  global-config:
+    db-config:
+      id-type: auto
+      logic-delete-field: deleted
+      logic-delete-value: 1
+      logic-not-delete-value: 0
+
+# Storage Configuration
+storage:
+  type: ${STORAGE_TYPE:LOCAL}
+  local:
+    base-path: ${STORAGE_PATH:./uploads}
+  oss:
+    endpoint: ${OSS_ENDPOINT:}
+    access-key: ${OSS_ACCESS_KEY:}
+    secret-key: ${OSS_SECRET_KEY:}
+    bucket-name: ${OSS_BUCKET:}
+  hdfs:
+    namenode: ${HDFS_NAMENODE:hdfs://localhost:9000}
+    base-path: ${HDFS_BASE_PATH:/justfile}
+
+# tus Upload Configuration
+tus:
+  max-size: 524288000  # 500MB
+  chunk-size: 5242880  # 5MB
+  expiration-hours: 24
+
+# Share Configuration
+share:
+  code-length: 6
+  default-expire-hours: 72
+  max-expire-hours: 168  # 7 days
+
+logging:
+  level:
+    com.justfile: INFO
+    org.springframework.web: INFO

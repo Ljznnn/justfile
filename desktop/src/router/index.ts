@@ -29,14 +29,19 @@ const router = createRouter({
       component: () => import('@/views/ImageEditor.vue')
     },
     {
-      path: '/pdf/convert',
-      name: 'PdfConvert',
-      component: () => import('@/views/PdfConvert.vue')
+      path: '/pdf/editor',
+      name: 'PdfEditor',
+      component: () => import('@/views/PdfEditor.vue')
     },
     {
-      path: '/pdf/merge',
-      name: 'PdfMerge',
-      component: () => import('@/views/PdfMerge.vue')
+      path: '/share',
+      name: 'FileShare',
+      component: () => import('@/views/FileShare.vue')
+    },
+    {
+      path: '/share/:code',
+      name: 'ShareDetail',
+      component: () => import('@/views/ShareDetail.vue')
     },
     {
       path: '/settings',

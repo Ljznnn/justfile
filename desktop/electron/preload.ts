@@ -10,7 +10,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // 图片处理
   compressImage: (filePath: string, apiKey: string) =>
     ipcRenderer.invoke('image:compress', filePath, apiKey),
-  uploadImage: (filePath: string, config: { repo: string; branch: string; token: string; path: string }) =>
+  uploadImage: (filePath: string, config: { repo: string; branch: string; token: string; path: string; timestampRename: boolean; customDomain: string; allowOverwrite: boolean }) =>
     ipcRenderer.invoke('image:upload', filePath, config),
 
   // 文档处理
@@ -31,6 +31,6 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   // 设置
   getSettings: () => ipcRenderer.invoke('settings:get'),
-  setSettings: (settings: Record<string, string>) =>
+  setSettings: (settings: Record<string, string | boolean>) =>
     ipcRenderer.invoke('settings:set', settings)
 })

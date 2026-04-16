@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.justfile.mapper.FileMapper">
+
+    <select id="selectByShareId" resultType="com.justfile.entity.FileEntity">
+        SELECT * FROM file WHERE share_id = #{shareId} ORDER BY created_at DESC
+    </select>
+
+    <select id="selectByTusId" resultType="com.justfile.entity.FileEntity">
+        SELECT * FROM file WHERE tus_id = #{tusId}
+    </select>
+
+</mapper>

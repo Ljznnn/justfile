@@ -15,9 +15,12 @@
     "browser-image-compression": "^2.0.2",
     "element-plus": "^2.13.7",
     "jszip": "^3.10.1",
+    "pdf-lib": "^1.17.1",
+    "pdfjs-dist": "^3.11.174",
     "pinia": "^2.1.7",
     "remixicon": "^4.9.1",
     "tui-image-editor": "^3.15.3",
+    "tus-js-client": "^4.3.1",
     "vue": "^3.4.21",
     "vue-router": "^4.3.0"
   },

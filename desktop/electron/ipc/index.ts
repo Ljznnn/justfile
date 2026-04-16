@@ -1,6 +1,12 @@
-import { ipcMain, dialog } from 'electron'
+import { ipcMain, dialog, app } from 'electron'
 import fs from 'fs'
 import path from 'path'
+
+const SETTINGS_FILE = 'settings.json'
+
+function getSettingsPath(): string {
+  return path.join(app.getPath('userData'), SETTINGS_FILE)
+}
 
 export function registerIpcHandlers() {
   ipcMain.handle('file:select', async (_, filters) => {
@@ -41,10 +47,31 @@ export function registerIpcHandlers() {
     return true
   })
 
-  ipcMain.handle('settings:get', async () => ({}))
+  // 获取设置
+  ipcMain.handle('settings:get', async () => {
+    try {
+      const settingsPath = getSettingsPath()
+      if (fs.existsSync(settingsPath)) {
+        const data = fs.readFileSync(settingsPath, 'utf-8')
+        return JSON.parse(data)
+      }
+      return {}
+    } catch (error) {
+      console.error('Failed to load settings:', error)
+      return {}
+    }
+  })
+
+  // 保存设置
   ipcMain.handle('settings:set', async (_, settings) => {
-    console.log('Settings saved:', settings)
-    return true
+    try {
+      const settingsPath = getSettingsPath()
+      fs.writeFileSync(settingsPath, JSON.stringify(settings, null, 2), 'utf-8')
+      return true
+    } catch (error) {
+      console.error('Failed to save settings:', error)
+      return false
+    }
   })
 }
 

@@ -50,19 +50,19 @@ export const useFeaturesStore = defineStore('features', () => {
       category: 'image'
     },
     {
-      id: 'pdf-convert',
-      name: 'PDF 转 Word',
-      description: 'PDF 文档转换为 Word',
-      icon: 'pdf',
-      route: '/pdf/convert',
+      id: 'pdf-editor',
+      name: 'PDF 编辑',
+      description: '页面排序、删除、旋转',
+      icon: 'edit',
+      route: '/pdf/editor',
       category: 'office'
     },
     {
-      id: 'pdf-merge',
-      name: 'PDF 合并',
-      description: '合并多个 PDF 文件',
-      icon: 'merge',
-      route: '/pdf/merge',
+      id: 'file-share',
+      name: '文件共享',
+      description: '创建或加入共享，安全传输文件',
+      icon: 'share',
+      route: '/share',
       category: 'office'
     }
   ])

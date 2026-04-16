@@ -1,13 +1,10 @@
 <script setup lang="ts">
-import { onMounted } from 'vue'
 import { useSettingsStore } from '@/stores/settings'
 import { useThemeStore } from '@/stores/theme'
 import Icon from '@/components/common/Icon.vue'
 
 const settingsStore = useSettingsStore()
 const themeStore = useThemeStore()
-
-onMounted(() => settingsStore.loadSettings())
 </script>
 
 <template>
@@ -31,7 +28,7 @@ onMounted(() => settingsStore.loadSettings())
         <button
           v-for="theme in themeStore.themes"
           :key="theme.id"
-          @click="themeStore.applyTheme(theme.id)"
+          @click="themeStore.switchTheme(theme.id as any)"
           class="theme-button p-3"
           :class="{ 'text-accent border-accent': themeStore.currentTheme === theme.id }"
         >

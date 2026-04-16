@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia'
-import { ref, watch } from 'vue'
+import { ref } from 'vue'
 
 export type ThemeName = 'tech' | 'apple' | 'minimal' | 'glass'
 
@@ -18,28 +18,47 @@ export const useThemeStore = defineStore('theme', () => {
   function applyTheme(theme: ThemeName) {
     document.documentElement.setAttribute('data-theme', theme)
     currentTheme.value = theme
-    saveTheme(theme)
   }
 
-  // 加载主题
-  function loadTheme() {
-    const saved = localStorage.getItem('justfile-theme') as ThemeName
-    if (saved && themes.some(t => t.id === saved)) {
-      applyTheme(saved)
-    } else {
-      applyTheme('apple')  // 默认苹果风格
+  // 加载主题（从 electron settings）
+  async function loadTheme() {
+    try {
+      const settings = await window.electronAPI?.getSettings()
+      const saved = settings?.theme?.current as ThemeName
+      if (saved && themes.some(t => t.id === saved)) {
+        applyTheme(saved)
+      } else {
+        applyTheme('apple')  // 默认苹果风格
+      }
+    } catch {
+      applyTheme('apple')
     }
   }
 
-  // 保存主题
-  function saveTheme(theme: ThemeName) {
-    localStorage.setItem('justfile-theme', theme)
+  // 保存主题（到 electron settings）
+  async function saveTheme(theme: ThemeName) {
+    try {
+      const settings = await window.electronAPI?.getSettings() || {}
+      await window.electronAPI?.setSettings({
+        ...settings,
+        theme: { current: theme }
+      })
+    } catch (error) {
+      console.error('Failed to save theme:', error)
+    }
+  }
+
+  // 切换主题并保存
+  async function switchTheme(theme: ThemeName) {
+    applyTheme(theme)
+    await saveTheme(theme)
   }
 
   return {
     currentTheme,
     themes,
     applyTheme,
-    loadTheme
+    loadTheme,
+    switchTheme
   }
 })

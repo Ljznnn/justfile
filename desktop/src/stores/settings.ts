@@ -1,45 +1,54 @@
 import { defineStore } from 'pinia'
-import { ref } from 'vue'
+import { ref, reactive } from 'vue'
 
 export const useSettingsStore = defineStore('settings', () => {
-  const tinifyKey = ref('')
-  const githubToken = ref('')
-  const githubRepo = ref('')
-  const githubBranch = ref('main')
-  const githubPath = ref('images')
-  const pdfApiKey = ref('')
+  // 图片压缩配置
+  const compress = reactive({
+    tinifyKey: ''
+  })
+
+  // 图床上传配置
+  const upload = reactive({
+    githubToken: '',
+    githubRepo: '',
+    githubBranch: 'main',
+    githubPath: 'images',
+    timestampRename: true,
+    customDomain: '',
+    allowOverwrite: false
+  })
+
+  // PDF 配置
+  const pdf = reactive({
+    apiKey: ''
+  })
 
   // 加载设置
   async function loadSettings() {
     try {
       const settings = await window.electronAPI.getSettings()
       if (settings) {
-        tinifyKey.value = settings.tinifyKey || ''
-        githubToken.value = settings.githubToken || ''
-        githubRepo.value = settings.githubRepo || ''
-        githubBranch.value = settings.githubBranch || 'main'
-        githubPath.value = settings.githubPath || 'images'
-        pdfApiKey.value = settings.pdfApiKey || ''
+        // 图片压缩
+        if (settings.compress) {
+          compress.tinifyKey = settings.compress.tinifyKey || ''
+        }
+        // 图床上传
+        if (settings.upload) {
+          upload.githubToken = settings.upload.githubToken || ''
+          upload.githubRepo = settings.upload.githubRepo || ''
+          upload.githubBranch = settings.upload.githubBranch || 'main'
+          upload.githubPath = settings.upload.githubPath || 'images'
+          upload.timestampRename = settings.upload.timestampRename !== false
+          upload.customDomain = settings.upload.customDomain || ''
+          upload.allowOverwrite = settings.upload.allowOverwrite === true
+        }
+        // PDF
+        if (settings.pdf) {
+          pdf.apiKey = settings.pdf.apiKey || ''
+        }
       }
     } catch (error) {
       console.error('Failed to load settings:', error)
-    }
-  }
-
-  // 保存单个配置项
-  async function saveSetting(key: string, value: string) {
-    try {
-      await window.electronAPI.setSettings({
-        tinifyKey: tinifyKey.value,
-        githubToken: githubToken.value,
-        githubRepo: githubRepo.value,
-        githubBranch: githubBranch.value,
-        githubPath: githubPath.value,
-        pdfApiKey: pdfApiKey.value,
-        [key]: value
-      })
-    } catch (error) {
-      console.error('Failed to save setting:', error)
     }
   }
 
@@ -47,12 +56,21 @@ export const useSettingsStore = defineStore('settings', () => {
   async function saveSettings() {
     try {
       await window.electronAPI.setSettings({
-        tinifyKey: tinifyKey.value,
-        githubToken: githubToken.value,
-        githubRepo: githubRepo.value,
-        githubBranch: githubBranch.value,
-        githubPath: githubPath.value,
-        pdfApiKey: pdfApiKey.value
+        compress: {
+          tinifyKey: compress.tinifyKey
+        },
+        upload: {
+          githubToken: upload.githubToken,
+          githubRepo: upload.githubRepo,
+          githubBranch: upload.githubBranch,
+          githubPath: upload.githubPath,
+          timestampRename: upload.timestampRename,
+          customDomain: upload.customDomain,
+          allowOverwrite: upload.allowOverwrite
+        },
+        pdf: {
+          apiKey: pdf.apiKey
+        }
       })
     } catch (error) {
       console.error('Failed to save settings:', error)
@@ -60,14 +78,10 @@ export const useSettingsStore = defineStore('settings', () => {
   }
 
   return {
-    tinifyKey,
-    githubToken,
-    githubRepo,
-    githubBranch,
-    githubPath,
-    pdfApiKey,
+    compress,
+    upload,
+    pdf,
     loadSettings,
-    saveSetting,
     saveSettings
   }
 })

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { reactive, computed } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useFeaturesStore } from '@/stores/features'
 import Icon from '@/components/common/Icon.vue'
@@ -10,20 +10,34 @@ const featuresStore = useFeaturesStore()
 
 const currentRoute = computed(() => route.path)
 
+// 展开/收起状态，默认展开第一个分类
+const expandedCategories = reactive<Record<string, boolean>>({})
+// 初始化第一个分类为展开状态
+if (featuresStore.categories[0]?.id) {
+  expandedCategories[featuresStore.categories[0].id] = true
+}
+
+const toggleCategory = (categoryId: string) => {
+  expandedCategories[categoryId] = !expandedCategories[categoryId]
+}
+
+const isCategoryExpanded = (categoryId: string) => {
+  return expandedCategories[categoryId] === true
+}
+
 const goToSettings = () => router.push('/settings')
 const goToHome = () => router.push('/')
 
 const categoryIcons: Record<string, string> = {
   image: 'image-line',
-  document: 'file-text-line'
+  office: 'file-text-line'
 }
 
 const featureIcons: Record<string, string> = {
   compress: 'image-edit-line',
   upload: 'upload-cloud-line',
   split: 'layout-grid-line',
-  pdf: 'file-pdf-2-line',
-  merge: 'file-add-line'
+  edit: 'edit-line'
 }
 </script>
 
@@ -46,14 +60,22 @@ const featureIcons: Record<string, string> = {
     <!-- 分类导航 -->
     <div class="flex-1 px-4">
       <div v-for="category in featuresStore.categories" :key="category.id" class="mb-4">
-        <!-- 分类标题 -->
-        <div class="theme-nav font-medium flex items-center gap-2">
+        <!-- 分类标题 - 可点击切换展开/收起 -->
+        <button
+          @click="toggleCategory(category.id)"
+          class="theme-nav font-medium flex items-center gap-2 w-full text-left hover:opacity-80 transition-opacity"
+        >
+          <Icon
+            :name="isCategoryExpanded(category.id) ? 'arrow-down-s-line' : 'arrow-right-s-line'"
+            :size="16"
+            class="icon-accent transition-transform"
+          />
           <Icon :name="categoryIcons[category.id] || 'folder-line'" :size="16" class="icon-accent" />
-          {{ category.name }}
-        </div>
+          <span class="text-primary">{{ category.name }}</span>
+        </button>
 
-        <!-- 功能列表 -->
-        <div class="mt-2 ml-4 space-y-1">
+        <!-- 功能列表 - 条件渲染 -->
+        <div v-show="isCategoryExpanded(category.id)" class="mt-2 ml-4 space-y-1">
           <router-link
             v-for="feature in featuresStore.getFeaturesByCategory(category.id)"
             :key="feature.id"
