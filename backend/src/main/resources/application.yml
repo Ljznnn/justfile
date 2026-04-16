@@ -9,9 +9,9 @@ spring:
   application:
     name: justfile
   datasource:
-    url: jdbc:mysql://nano:3306/justfile?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai
-    username: ${DB_USERNAME:ljz}
-    password: ${DB_PASSWORD:1234qwer}
+    url: jdbc:mysql://45.116.79.32:3306/justfile?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai
+    username: ${DB_USERNAME:admin}
+    password: ${DB_PASSWORD:ljz.138000!@#}
     driver-class-name: com.mysql.cj.jdbc.Driver
     hikari:
       minimum-idle: 5
@@ -22,10 +22,7 @@ spring:
       connection-timeout: 30000
 
   jackson:
-    date-format: yyyy-MM-dd HH:mm:ss
     time-zone: Asia/Shanghai
-    serialization:
-      write-dates-as-timestamps: false
 
 mybatis-plus:
   mapper-locations: classpath:mapper/*.xml

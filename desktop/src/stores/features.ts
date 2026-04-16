@@ -12,11 +12,20 @@ export interface Feature {
 
 export const useFeaturesStore = defineStore('features', () => {
   const categories = ref([
+    { id: 'share', name: '文件共享', icon: 'share' },
     { id: 'image', name: '图片处理', icon: 'image' },
     { id: 'office', name: '办公处理', icon: 'document' }
   ])
 
   const features = ref<Feature[]>([
+    {
+      id: 'file-share',
+      name: '文件共享',
+      description: '创建或加入共享，安全传输文件',
+      icon: 'share',
+      route: '/share',
+      category: 'share'
+    },
     {
       id: 'image-compress',
       name: '图片压缩',
@@ -55,14 +64,6 @@ export const useFeaturesStore = defineStore('features', () => {
       description: '页面排序、删除、旋转',
       icon: 'edit',
       route: '/pdf/editor',
-      category: 'office'
-    },
-    {
-      id: 'file-share',
-      name: '文件共享',
-      description: '创建或加入共享，安全传输文件',
-      icon: 'share',
-      route: '/share',
       category: 'office'
     }
   ])

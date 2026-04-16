@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, shell } from 'electron'
+import { app, BrowserWindow, ipcMain, shell, nativeImage } from 'electron'
 import { join } from 'path'
 import { registerIpcHandlers } from './ipc/index'
 import { registerImageIpcHandlers } from './ipc/image'
@@ -11,6 +11,12 @@ registerImageIpcHandlers()
 registerDocumentIpcHandlers()
 
 function createWindow(): void {
+  // 加载应用图标
+  const iconPath = isDev
+    ? join(__dirname, '../src/assets/icon.png')
+    : join(__dirname, '../renderer/assets/icon.png')
+  const appIcon = nativeImage.createFromPath(iconPath)
+
   const mainWindow = new BrowserWindow({
     width: 1200,
     height: 800,
@@ -18,6 +24,7 @@ function createWindow(): void {
     minHeight: 600,
     frame: false,
     backgroundColor: '#ffffff',
+    icon: appIcon,
     webPreferences: {
       preload: join(__dirname, 'preload.js'),
       sandbox: false,

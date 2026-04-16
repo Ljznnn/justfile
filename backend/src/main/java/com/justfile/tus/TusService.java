@@ -86,6 +86,7 @@ public class TusService {
 
         // 生成 Tus ID
         String tusId = IdUtil.fastSimpleUUID();
+        LocalDateTime now = LocalDateTime.now();
 
         // 创建 Tus 上传记录
         TusUpload upload = new TusUpload();
@@ -95,7 +96,8 @@ public class TusService {
         upload.setTotalSize(totalSize);
         upload.setOffset(0L);
         upload.setMetadata(metadata);
-        upload.setExpiresAt(LocalDateTime.now().plusHours(expirationHours));
+        upload.setExpiresAt(now.plusHours(expirationHours));
+        upload.setCreatedAt(now);
 
         tusUploadMapper.insert(upload);
 
@@ -110,6 +112,8 @@ public class TusService {
         file.setStoragePath(shareId + "/" + tusId);
         file.setUploadState(Constants.FILE_STATE_UPLOADING);
         file.setTusId(tusId);
+        file.setCreatedAt(now);
+        file.setUpdatedAt(now);
 
         fileMapper.insert(file);
         upload.setFileId(file.getId());

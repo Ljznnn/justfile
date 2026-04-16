@@ -29,11 +29,13 @@ const goToSettings = () => router.push('/settings')
 const goToHome = () => router.push('/')
 
 const categoryIcons: Record<string, string> = {
+  share: 'folder-shared-line',
   image: 'image-line',
   office: 'file-text-line'
 }
 
 const featureIcons: Record<string, string> = {
+  share: 'team-line',
   compress: 'image-edit-line',
   upload: 'upload-cloud-line',
   split: 'layout-grid-line',

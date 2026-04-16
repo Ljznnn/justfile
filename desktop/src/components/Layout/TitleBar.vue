@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import Icon from '@/components/common/Icon.vue'
+import LogoImage from '@/assets/logo.png'
 
 const minimize = () => window.electronAPI.windowMinimize()
 const maximize = () => window.electronAPI.windowMaximize()
@@ -10,12 +11,10 @@ const close = () => window.electronAPI.windowClose()
   <div class="titlebar flex items-center justify-between px-4">
     <!-- Logo + 口号 -->
     <div class="flex items-center gap-3">
-      <div class="theme-icon-box w-7 h-7">
-        <Icon name="file-text-line" :size="16" class="icon-accent" />
-      </div>
+      <img :src="LogoImage" alt="JustFile" class="w-7 h-7 rounded-lg" />
       <div class="flex items-center gap-2">
-        <span class="text-primary font-medium text-sm">JustFile</span>
-        <span class="text-muted text-xs hidden sm:inline">让文件处理更简单</span>
+        <span class="logo-text font-semibold text-base tracking-wide">JustFile</span>
+        <span class="text-muted text-xs">让文件处理更简单</span>
       </div>
     </div>
 
@@ -55,8 +54,13 @@ const close = () => window.electronAPI.windowClose()
   -webkit-app-region: no-drag;
 }
 
-.icon-accent {
+.logo-text {
   color: var(--accent);
+  text-shadow:
+    0 0 10px var(--accent-glow),
+    0 0 20px var(--accent-glow),
+    0 0 30px var(--accent-glow);
+  letter-spacing: 0.05em;
 }
 
 .window-btn {

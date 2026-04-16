@@ -2,8 +2,6 @@ package com.justfile.dto.response;
 
 import lombok.Data;
 
-import java.time.LocalDateTime;
-
 /**
  * 文件响应 DTO
  * <p>
@@ -47,7 +45,7 @@ public class FileResponse {
     private Integer uploadState;
 
     /**
-     * 创建时间
+     * 创建时间（时间戳，毫秒）
      */
-    private LocalDateTime createdAt;
+    private Long createdAt;
 }

@@ -2,8 +2,6 @@ package com.justfile.dto.response;
 
 import lombok.Data;
 
-import java.time.LocalDateTime;
-
 /**
  * 成员响应 DTO
  * <p>
@@ -31,7 +29,7 @@ public class MemberResponse {
     private Integer role;
 
     /**
-     * 加入时间
+     * 加入时间（时间戳，毫秒）
      */
-    private LocalDateTime joinedAt;
+    private Long joinedAt;
 }
