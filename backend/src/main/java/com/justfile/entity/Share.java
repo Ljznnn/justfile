@@ -30,6 +30,12 @@ public class Share {
     private String shareCode;
 
     /**
+     * 分享名称
+     * 类似群组名称，所有人可见
+     */
+    private String shareName;
+
+    /**
      * 密码哈希值
      * 可选，用于保护分享
      */

@@ -238,6 +238,47 @@ function copyShareCode() {
   ElMessage.success('分享码已复制')
 }
 
+// 分享名称编辑
+const editingName = ref(false)
+const editNameValue = ref('')
+const savingName = ref(false)
+
+/**
+ * 开始编辑分享名称
+ */
+function startEditName() {
+  editNameValue.value = shareStore.currentShare?.shareName || ''
+  editingName.value = true
+}
+
+/**
+ * 取消编辑分享名称
+ */
+function cancelEditName() {
+  editingName.value = false
+  editNameValue.value = ''
+}
+
+/**
+ * 保存分享名称
+ */
+async function saveShareName() {
+  if (savingName.value) return
+  savingName.value = true
+  try {
+    await shareApi.updateShareName(shareCode, editNameValue.value || '')
+    if (shareStore.currentShare) {
+      shareStore.currentShare.shareName = editNameValue.value || null
+    }
+    editingName.value = false
+    ElMessage.success('分享名称已更新')
+  } catch (error: any) {
+    ElMessage.error(error.response?.data?.message || '更新失败')
+  } finally {
+    savingName.value = false
+  }
+}
+
 // Auto refresh
 let refreshTimer: number | null = null
 
@@ -270,9 +311,46 @@ onUnmounted(() => {
       <!-- Header -->
       <div class="flex items-center justify-between mb-6">
         <div>
-          <h1 class="text-primary font-semibold title-line">分享空间</h1>
+          <!-- 分享名称显示/编辑 -->
+          <div class="flex items-center gap-2 mb-1">
+            <template v-if="editingName">
+              <input
+                v-model="editNameValue"
+                type="text"
+                class="theme-input px-2 py-1 text-lg font-semibold"
+                style="max-width: 300px;"
+                placeholder="输入分享名称"
+                maxlength="100"
+                @keyup.enter="saveShareName"
+                @keyup.escape="cancelEditName"
+              />
+              <button
+                class="theme-button-primary px-2 py-1 text-xs"
+                :disabled="savingName"
+                @click="saveShareName"
+              >
+                {{ savingName ? '保存中...' : '保存' }}
+              </button>
+              <button class="theme-button px-2 py-1 text-xs" @click="cancelEditName">
+                取消
+              </button>
+            </template>
+            <template v-else>
+              <h1 class="text-primary font-semibold title-line">
+                {{ shareStore.currentShare.shareName || '分享空间' }}
+              </h1>
+              <button
+                v-if="shareStore.isCreator"
+                class="theme-button px-1.5 py-1 text-xs"
+                @click="startEditName"
+                title="编辑名称"
+              >
+                <Icon name="edit-line" :size="12" />
+              </button>
+            </template>
+          </div>
           <div class="flex items-center gap-3 mt-2">
-            <span class="text-accent font-mono text-lg tracking-wider">{{ shareCode }}</span>
+            <span class="text-accent font-mono text-sm tracking-wider">{{ shareCode }}</span>
             <button class="theme-button px-2 py-1 text-xs" @click="copyShareCode">
               <Icon name="clipboard-line" :size="12" />
             </button>

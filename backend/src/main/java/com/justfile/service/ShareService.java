@@ -4,6 +4,7 @@ import com.justfile.common.Constants;
 import com.justfile.common.ErrorCode;
 import com.justfile.dto.request.CreateShareRequest;
 import com.justfile.dto.request.JoinShareRequest;
+import com.justfile.dto.request.UpdateShareNameRequest;
 import com.justfile.dto.response.MemberResponse;
 import com.justfile.dto.response.ShareInfoResponse;
 import com.justfile.dto.response.ShareResponse;
@@ -88,6 +89,7 @@ public class ShareService {
         // 创建分享实体
         Share share = new Share();
         share.setShareCode(shareCode);
+        share.setShareName(request.getShareName());
         share.setCreatorFingerprint(fingerprint);
         share.setShareMode(request.getShareMode() != null ? request.getShareMode() : Constants.SHARE_MODE_CREATOR_ONLY);
         share.setStatus(Constants.SHARE_STATUS_ACTIVE);
@@ -140,6 +142,7 @@ public class ShareService {
 
         ShareInfoResponse response = new ShareInfoResponse();
         response.setShareCode(share.getShareCode());
+        response.setShareName(share.getShareName());
         response.setShareMode(share.getShareMode());
         response.setHasPassword(share.getPasswordHash() != null);
         response.setExpiresAt(share.getExpiresAt());
@@ -230,6 +233,30 @@ public class ShareService {
     }
 
     /**
+     * 更新分享名称
+     * <p>
+     * 仅创建者可以修改分享名称
+     * </p>
+     *
+     * @param shareCode  分享码
+     * @param request    更新请求
+     * @param fingerprint 操作者指纹
+     */
+    @Transactional
+    public void updateShareName(String shareCode, UpdateShareNameRequest request, String fingerprint) {
+        Share share = getByCode(shareCode);
+
+        if (!isCreator(share.getId(), fingerprint)) {
+            throw new BusinessException(ErrorCode.NOT_CREATOR);
+        }
+
+        share.setShareName(request.getShareName());
+        shareMapper.updateById(share);
+
+        log.info("分享名称已更新: code={}, name={}", shareCode, request.getShareName());
+    }
+
+    /**
      * 根据分享码获取分享实体
      *
      * @param shareCode 分享码
@@ -310,6 +337,7 @@ public class ShareService {
         ShareResponse response = new ShareResponse();
         response.setShareId(share.getId());
         response.setShareCode(share.getShareCode());
+        response.setShareName(share.getShareName());
         response.setShareMode(share.getShareMode());
         response.setExpiresAt(share.getExpiresAt());
         response.setCreatedAt(share.getCreatedAt());

@@ -26,6 +26,12 @@ public class ShareResponse {
     private String shareCode;
 
     /**
+     * 分享名称
+     * 类似群组名称，所有人可见
+     */
+    private String shareName;
+
+    /**
      * 分享模式
      * 0: 仅创建者可上传
      * 1: 所有成员可上传

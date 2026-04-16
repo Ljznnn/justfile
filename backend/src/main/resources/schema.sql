@@ -4,6 +4,7 @@
 CREATE TABLE IF NOT EXISTS `share` (
   `id` BIGINT PRIMARY KEY AUTO_INCREMENT,
   `share_code` VARCHAR(8) NOT NULL UNIQUE COMMENT 'Short share ID for users',
+  `share_name` VARCHAR(100) DEFAULT NULL COMMENT 'Share display name, like group name',
   `password_hash` VARCHAR(255) DEFAULT NULL COMMENT 'BCrypt hashed password, NULL if no password',
   `creator_fingerprint` VARCHAR(64) NOT NULL COMMENT 'Browser fingerprint of creator',
   `share_mode` TINYINT DEFAULT 0 COMMENT '0: creator only upload, 1: all members can upload',

@@ -2,6 +2,7 @@
 export interface Share {
   shareId: number
   shareCode: string
+  shareName: string | null
   shareMode: number
   expiresAt: string | null
   createdAt: string
@@ -17,6 +18,7 @@ export interface Member {
 
 export interface ShareInfo {
   shareCode: string
+  shareName: string | null
   shareMode: number
   hasPassword: boolean
   expiresAt: string | null
@@ -36,6 +38,7 @@ export interface SharedFile {
 
 // Request types
 export interface CreateShareRequest {
+  shareName?: string
   password?: string
   shareMode?: number
   expiresInHours?: number

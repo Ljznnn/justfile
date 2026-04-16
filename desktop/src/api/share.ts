@@ -55,6 +55,15 @@ export const shareApi = {
     await api.delete(`/shares/${shareCode}`)
   },
 
+  /**
+   * 更新分享名称
+   * @param shareCode 分享码
+   * @param shareName 新的分享名称
+   */
+  async updateShareName(shareCode: string, shareName: string): Promise<void> {
+    await api.patch(`/shares/${shareCode}/name`, { shareName })
+  },
+
   // Files
   async getFiles(shareId: number): Promise<SharedFile[]> {
     const response = await api.get(`/files/share/${shareId}`)

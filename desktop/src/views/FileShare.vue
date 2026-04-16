@@ -15,6 +15,7 @@ const activeTab = ref<'create' | 'join'>('create')
 
 // Create form - 默认有效期24小时
 const createForm = ref<CreateShareRequest>({
+  shareName: '',
   password: '',
   shareMode: 0,
   expiresInHours: 24,
@@ -309,6 +310,18 @@ onMounted(async () => {
     <div v-if="activeTab === 'create'" class="theme-card p-6 space-y-4">
       <div>
         <label class="block text-sm text-muted mb-1.5">分享名称（可选）</label>
+        <input
+          v-model="createForm.shareName"
+          type="text"
+          class="theme-input w-full px-3 py-2 text-sm"
+          placeholder="如：项目资料分享"
+          maxlength="100"
+        />
+        <p class="text-xs text-muted mt-1">类似群组名称，所有人可见</p>
+      </div>
+
+      <div>
+        <label class="block text-sm text-muted mb-1.5">你的昵称</label>
         <input
           v-model="createForm.creatorName"
           type="text"

@@ -15,6 +15,13 @@ import lombok.Data;
 public class CreateShareRequest {
 
     /**
+     * 分享名称
+     * 类似群组名称，可选，最大 100 个字符
+     */
+    @Size(max = 100, message = "分享名称最多 100 个字符")
+    private String shareName;
+
+    /**
      * 分享密码
      * 可选，最大 32 个字符
      */

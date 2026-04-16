@@ -4,6 +4,7 @@ import com.justfile.common.Constants;
 import com.justfile.common.Result;
 import com.justfile.dto.request.CreateShareRequest;
 import com.justfile.dto.request.JoinShareRequest;
+import com.justfile.dto.request.UpdateShareNameRequest;
 import com.justfile.dto.response.ShareInfoResponse;
 import com.justfile.dto.response.ShareResponse;
 import com.justfile.service.ShareService;
@@ -99,6 +100,26 @@ public class ShareController {
             @PathVariable String shareCode,
             @RequestHeader(Constants.HEADER_FINGERPRINT) String fingerprint) {
         shareService.closeShare(shareCode, fingerprint);
+        return Result.success();
+    }
+
+    /**
+     * 更新分享名称
+     * <p>
+     * 仅创建者可以修改分享名称，所有人可见
+     * </p>
+     *
+     * @param shareCode   分享码
+     * @param request     更新请求
+     * @param fingerprint  操作者指纹（从请求头获取）
+     * @return 成功响应
+     */
+    @PatchMapping("/{shareCode}/name")
+    public Result<Void> updateShareName(
+            @PathVariable String shareCode,
+            @Valid @RequestBody UpdateShareNameRequest request,
+            @RequestHeader(Constants.HEADER_FINGERPRINT) String fingerprint) {
+        shareService.updateShareName(shareCode, request, fingerprint);
         return Result.success();
     }
 
