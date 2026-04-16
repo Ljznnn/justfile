@@ -34,6 +34,22 @@ api.interceptors.request.use(config => {
   return config
 })
 
+// 响应拦截器：检查业务状态码
+api.interceptors.response.use(
+  response => {
+    // 后端返回 HTTP 200，但业务状态码可能不是 200
+    const data = response.data
+    if (data.code && data.code !== 200) {
+      // 业务错误，构造错误对象抛出
+      const error = new Error(data.message || '请求失败') as any
+      error.response = { data }
+      return Promise.reject(error)
+    }
+    return response
+  },
+  error => Promise.reject(error)
+)
+
 export const shareApi = {
   // Share management
   async createShare(request: CreateShareRequest): Promise<Share> {

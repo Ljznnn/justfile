@@ -6,6 +6,7 @@ import Icon from '@/components/common/Icon.vue'
 import { useShareStore } from '@/stores/share'
 import { shareApi, getFingerprint } from '@/api/share'
 import type { SharedFile, UploadProgress } from '@/types/share'
+import { SHARE_STATUS } from '@/types/share'
 import * as tus from 'tus-js-client'
 
 const route = useRoute()
@@ -33,6 +34,27 @@ const completedCount = computed(() => {
   return uploadList.value.filter(u => u.status === 'completed').length
 })
 
+// 分享状态提示信息
+const statusMessage = computed(() => {
+  if (shareStore.isClosed) {
+    return {
+      type: 'error' as const,
+      icon: 'forbid-line',
+      title: '分享已关闭',
+      desc: '此分享已被创建者关闭，无法进行任何操作'
+    }
+  }
+  if (shareStore.isExpired) {
+    return {
+      type: 'warning' as const,
+      icon: 'time-line',
+      title: '分享已过期',
+      desc: '此分享已超过有效期，您可以查看文件列表，但不能上传或下载文件'
+    }
+  }
+  return null
+})
+
 // Format file size
 function formatSize(bytes: number): string {
   if (bytes < 1024) return bytes + ' B'
@@ -41,21 +63,43 @@ function formatSize(bytes: number): string {
   return (bytes / 1024 / 1024 / 1024).toFixed(1) + ' GB'
 }
 
-// Format time
-function formatTime(dateStr: string): string {
-  return new Date(dateStr).toLocaleString('zh-CN')
+// Format time - 支持时间戳（毫秒）和字符串格式
+function formatTime(dateStr: string | number): string {
+  if (!dateStr) return ''
+  const date = typeof dateStr === 'number' ? new Date(dateStr) : new Date(dateStr)
+  return date.toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai' })
 }
 
 // Load share data
 async function loadShare() {
   loading.value = true
   try {
-    if (!shareStore.currentShare || shareStore.currentShare.shareCode !== shareCode) {
-      await shareStore.joinShare(shareCode, { memberName: 'User' })
+    // 先获取分享信息，检查状态
+    const info = await shareStore.getShareInfo(shareCode)
+
+    // 已关闭的分享不允许进入
+    if (info.status === SHARE_STATUS.CLOSED) {
+      ElMessage.error('此分享已被关闭')
+      router.push('/share')
+      return
     }
-    await shareStore.loadFiles()
+
+    // 尝试加入分享（已过期的分享仅允许已有成员进入）
+    try {
+      await shareStore.joinShare(shareCode, { memberName: 'User' })
+      await shareStore.loadFiles()
+    } catch (joinError: any) {
+      // 如果是过期错误，说明是新成员尝试加入过期分享
+      if (joinError.response?.data?.code === 410) {
+        ElMessage.warning('此分享已过期，仅限已有成员访问')
+        router.push('/share')
+        return
+      }
+      throw joinError
+    }
   } catch (error: any) {
     ElMessage.error(error.response?.data?.message || '加载失败')
+    router.push('/share')
   } finally {
     loading.value = false
   }
@@ -91,6 +135,12 @@ async function handleDrop(event: DragEvent) {
  * @param file 要上传的文件
  */
 async function uploadFile(file: File) {
+  // 检查分享状态
+  if (!shareStore.isActive) {
+    ElMessage.warning(shareStore.isExpired ? '分享已过期，无法上传文件' : '分享已关闭，无法上传文件')
+    return
+  }
+
   const uploadIndex = uploadList.value.length
   const progress: UploadProgress = {
     fileId: null,
@@ -159,6 +209,12 @@ async function uploadFile(file: File) {
  * @param file 要下载的文件
  */
 async function downloadFile(file: SharedFile) {
+  // 检查分享状态
+  if (!shareStore.isActive) {
+    ElMessage.warning(shareStore.isExpired ? '分享已过期，无法下载文件' : '分享已关闭，无法下载文件')
+    return
+  }
+
   try {
     const fingerprint = getFingerprint()
     const response = await fetch(`${API_BASE}/files/${file.id}/download`, {
@@ -308,6 +364,17 @@ onUnmounted(() => {
     </div>
 
     <template v-else-if="shareStore.currentShare">
+      <!-- 状态提示横幅 -->
+      <div v-if="statusMessage" class="status-banner mb-4" :class="statusMessage.type">
+        <div class="status-banner-icon">
+          <Icon :name="statusMessage.icon" :size="20" />
+        </div>
+        <div class="status-banner-content">
+          <h3 class="status-banner-title">{{ statusMessage.title }}</h3>
+          <p class="status-banner-desc">{{ statusMessage.desc }}</p>
+        </div>
+      </div>
+
       <!-- Header -->
       <div class="flex items-center justify-between mb-6">
         <div>
@@ -354,6 +421,9 @@ onUnmounted(() => {
             <button class="theme-button px-2 py-1 text-xs" @click="copyShareCode">
               <Icon name="clipboard-line" :size="12" />
             </button>
+            <span class="text-muted text-xs">
+              创建: {{ formatTime(shareStore.currentShare.createdAt) }}
+            </span>
             <span v-if="shareStore.currentShare.expiresAt" class="text-muted text-xs">
               过期: {{ formatTime(shareStore.currentShare.expiresAt) }}
             </span>
@@ -403,8 +473,12 @@ onUnmounted(() => {
       <!-- No upload permission hint -->
       <div v-else class="mb-6">
         <div class="no-upload-area p-4 text-center">
-          <Icon name="lock-line" :size="20" class="text-muted mb-1" />
-          <p class="text-muted text-sm">当前分享模式仅允许创建者上传文件</p>
+          <Icon :name="shareStore.isExpired ? 'time-line' : shareStore.isClosed ? 'forbid-line' : 'lock-line'" :size="20" class="text-muted mb-1" />
+          <p class="text-muted text-sm">
+            <template v-if="shareStore.isExpired">分享已过期，无法上传文件</template>
+            <template v-else-if="shareStore.isClosed">分享已关闭，无法上传文件</template>
+            <template v-else>当前分享模式仅允许创建者上传文件</template>
+          </p>
         </div>
       </div>
 
@@ -459,8 +533,10 @@ onUnmounted(() => {
               <div class="flex items-center gap-1">
                 <button
                   class="theme-button px-2 py-1 text-xs"
+                  :class="{ 'opacity-50 cursor-not-allowed': !shareStore.canDownload }"
+                  :disabled="!shareStore.canDownload"
                   @click="downloadFile(file)"
-                  title="下载"
+                  :title="shareStore.canDownload ? '下载' : '分享已过期，无法下载'"
                 >
                   <Icon name="download-line" :size="14" />
                 </button>
@@ -552,6 +628,61 @@ onUnmounted(() => {
 .text-accent { color: var(--accent-text); }
 .text-red-400 { color: #f56c6c; }
 .text-green-400 { color: #67c23a; }
+
+/* 状态提示横幅 */
+.status-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 16px;
+  border-radius: 12px;
+  border: 1px solid;
+}
+.status-banner.warning {
+  background: rgba(230, 162, 60, 0.1);
+  border-color: rgba(230, 162, 60, 0.3);
+}
+.status-banner.error {
+  background: rgba(245, 108, 108, 0.1);
+  border-color: rgba(245, 108, 108, 0.3);
+}
+.status-banner-icon {
+  flex-shrink: 0;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.status-banner.warning .status-banner-icon {
+  background: rgba(230, 162, 60, 0.2);
+  color: #e6a23c;
+}
+.status-banner.error .status-banner-icon {
+  background: rgba(245, 108, 108, 0.2);
+  color: #f56c6c;
+}
+.status-banner-content {
+  flex: 1;
+}
+.status-banner-title {
+  font-size: 14px;
+  font-weight: 600;
+  margin: 0 0 4px 0;
+}
+.status-banner.warning .status-banner-title {
+  color: #e6a23c;
+}
+.status-banner.error .status-banner-title {
+  color: #f56c6c;
+}
+.status-banner-desc {
+  font-size: 12px;
+  color: var(--muted);
+  margin: 0;
+  line-height: 1.5;
+}
 
 /* 分享名称标题样式 */
 .share-title {

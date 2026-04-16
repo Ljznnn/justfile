@@ -82,8 +82,9 @@ interface HistoryShare {
   shareId: number
   shareName: string | null
   isCreator: boolean
-  createdAt: string
-  expiresAt: string | null
+  createdAt: number       // 时间戳（毫秒）
+  expiresAt: number | null  // 时间戳（毫秒）
+  status: number          // 分享状态：0-已关闭, 1-活跃, 2-已过期
   memberCount: number
   fileCount: number
 }
@@ -99,7 +100,12 @@ function loadHistory() {
   const stored = localStorage.getItem('jf_share_history')
   if (stored) {
     try {
-      historyShares.value = JSON.parse(stored)
+      const parsed = JSON.parse(stored)
+      // 为旧记录添加默认 status
+      historyShares.value = parsed.map((h: HistoryShare) => ({
+        ...h,
+        status: h.status ?? 1  // 默认为活跃状态
+      }))
     } catch {
       historyShares.value = []
     }
@@ -124,9 +130,22 @@ async function refreshHistoryInfo() {
           share.fileCount = info.fileCount
           share.expiresAt = info.expiresAt
           share.shareName = info.shareName
+          share.status = info.status
         })
-        .catch(() => {
-          // 分享可能已过期或被删除，保持原数据
+        .catch((error: any) => {
+          // axios 错误结构: error.response.data
+          const responseData = error.response?.data
+          if (responseData) {
+            const code = responseData.code
+            if (code === 403) {
+              // 分享已关闭
+              share.status = 0
+            } else if (code === 410) {
+              // 分享已过期
+              share.status = 2
+            }
+          }
+          // 其他错误保持原数据
         })
     )
   }
@@ -142,20 +161,22 @@ async function refreshHistoryInfo() {
  * @param share 分享信息
  * @param isCreator 是否为创建者
  */
-function saveToHistory(share: { shareCode: string; shareId: number; shareName: string | null; expiresAt: string | null }, isCreator: boolean, memberCount: number = 1, fileCount: number = 0) {
+function saveToHistory(share: { shareCode: string; shareId: number; shareName: string | null; expiresAt: number | null; status?: number }, isCreator: boolean, memberCount: number = 1, fileCount: number = 0) {
   const existing = historyShares.value.findIndex(h => h.shareCode === share.shareCode)
   if (existing >= 0) {
     historyShares.value[existing].memberCount = memberCount
     historyShares.value[existing].fileCount = fileCount
     historyShares.value[existing].shareName = share.shareName
+    historyShares.value[existing].status = share.status ?? 1
   } else {
     historyShares.value.unshift({
       shareCode: share.shareCode,
       shareId: share.shareId,
       shareName: share.shareName,
       isCreator,
-      createdAt: new Date().toISOString(),
+      createdAt: Date.now(),
       expiresAt: share.expiresAt,
+      status: share.status ?? 1,
       memberCount,
       fileCount
     })
@@ -178,17 +199,60 @@ function removeFromHistory(shareCode: string) {
 
 /**
  * 格式化时间显示
- * @param dateStr 时间字符串
+ * @param dateStr 时间戳（毫秒）或字符串
  */
-function formatTime(dateStr: string | null): string {
+function formatTime(dateStr: string | number | null): string {
   if (!dateStr) return '永不过期'
-  const date = new Date(dateStr)
+  const date = typeof dateStr === 'number' ? new Date(dateStr) : new Date(dateStr)
   const now = new Date()
   const diff = date.getTime() - now.getTime()
   if (diff < 0) return '已过期'
   if (diff < 3600000) return `${Math.floor(diff / 60000)}分钟后过期`
   if (diff < 86400000) return `${Math.floor(diff / 3600000)}小时后过期`
   return `${Math.floor(diff / 86400000)}天后过期`
+}
+
+/**
+ * 获取分享状态文本
+ * @param share 历史分享记录
+ */
+function getStatusText(share: HistoryShare): string {
+  if (share.status === 0) return '已关闭'
+  if (share.status === 2) return '已过期'
+  return ''
+}
+
+/**
+ * 获取分享时间显示文本
+ * @param share 历史分享记录
+ */
+function getTimeDisplay(share: HistoryShare): string {
+  // 已关闭的分享不显示过期时间
+  if (share.status === 0) {
+    return `${share.memberCount}人 · ${share.fileCount}文件`
+  }
+  return `${share.memberCount}人 · ${share.fileCount}文件 · ${formatTime(share.expiresAt)}`
+}
+
+/**
+ * 判断分享是否可操作
+ * @param share 历史分享记录
+ */
+function canOpenShare(share: HistoryShare): boolean {
+  // 已关闭的分享不能打开
+  // 已过期的分享，已有成员可以进入查看
+  if (share.status === 0) return false
+  return true
+}
+
+/**
+ * 获取点击提示文本
+ * @param share 历史分享记录
+ */
+function getClickTip(share: HistoryShare): string {
+  if (share.status === 0) return '分享已关闭'
+  if (share.status === 2) return '分享已过期，可查看但无法上传下载'
+  return ''
 }
 
 /**
@@ -222,8 +286,18 @@ async function handleJoin() {
 
   joinLoading.value = true
   try {
-    // 先获取分享信息检查是否需要密码
+    // 先获取分享信息检查状态和密码
     const info = await shareStore.getShareInfo(joinCode.value.trim().toUpperCase())
+
+    // 检查分享状态
+    if (info.status === 0) {
+      ElMessage.error('此分享已被关闭，无法加入')
+      return
+    }
+    if (info.status === 2) {
+      ElMessage.warning('此分享已过期，无法加入')
+      return
+    }
 
     if (info.hasPassword && !joinForm.value.password) {
       ElMessage.warning('该分享需要密码')
@@ -295,37 +369,50 @@ onMounted(async () => {
         </div>
 
         <!-- 历史记录列表 -->
-        <div
+        <el-tooltip
           v-for="share in historyShares"
           :key="share.shareCode"
-          class="history-card flex items-center gap-3 p-3 rounded-lg cursor-pointer"
-          @click="openHistoryShare(share.shareCode, share.isCreator)"
+          :content="getClickTip(share)"
+          :disabled="!getClickTip(share)"
+          :show-after="2000"
+          placement="top"
         >
-          <div class="history-icon w-8 h-8 rounded-full flex items-center justify-center" :class="share.isCreator ? 'creator' : 'member'">
-            <Icon :name="share.isCreator ? 'vip-crown-line' : 'user-line'" :size="14" />
-          </div>
-          <div class="flex-1 min-w-0">
-            <div class="flex items-center gap-2">
-              <span class="text-primary text-sm font-medium">{{ share.shareName || share.shareCode }}</span>
-              <span v-if="share.shareName" class="text-muted text-xs font-mono">{{ share.shareCode }}</span>
+          <div
+            class="history-card flex items-center gap-3 p-3 rounded-lg"
+            :class="{ 'cursor-pointer': canOpenShare(share), 'opacity-60 cursor-not-allowed': !canOpenShare(share) }"
+            @click="canOpenShare(share) && openHistoryShare(share.shareCode, share.isCreator)"
+          >
+            <div class="history-icon w-8 h-8 rounded-full flex items-center justify-center" :class="share.isCreator ? 'creator' : 'member'">
+              <Icon :name="share.isCreator ? 'vip-crown-line' : 'user-line'" :size="14" />
             </div>
-            <p class="text-muted text-xs mt-1">
-              {{ share.memberCount }}人 · {{ share.fileCount }}文件 · {{ formatTime(share.expiresAt) }}
-            </p>
+            <div class="flex-1 min-w-0">
+              <div class="flex items-center gap-2">
+                <span class="text-primary text-sm font-medium">{{ share.shareName || share.shareCode }}</span>
+                <span v-if="share.shareName" class="text-muted text-xs font-mono">{{ share.shareCode }}</span>
+              </div>
+              <p class="text-muted text-xs mt-1">
+                {{ getTimeDisplay(share) }}
+              </p>
+            </div>
+            <div class="flex items-center gap-2">
+              <!-- 状态标签 -->
+              <span v-if="getStatusText(share)" class="status-tag text-xs px-2 py-1 rounded" :class="share.status === 0 ? 'closed' : 'expired'">
+                {{ getStatusText(share) }}
+              </span>
+              <span class="history-tag text-xs px-2 py-1 rounded" :class="share.isCreator ? 'creator' : 'member'">
+                {{ share.isCreator ? '我创建' : '我加入' }}
+              </span>
+              <el-tooltip content="移除记录" :show-after="2000" placement="top">
+                <button
+                  class="remove-btn w-6 h-6 rounded flex items-center justify-center"
+                  @click.stop="removeFromHistory(share.shareCode)"
+                >
+                  <Icon name="close-line" :size="12" />
+                </button>
+              </el-tooltip>
+            </div>
           </div>
-          <div class="flex items-center gap-2">
-            <span class="history-tag text-xs px-2 py-1 rounded" :class="share.isCreator ? 'creator' : 'member'">
-              {{ share.isCreator ? '我创建' : '我加入' }}
-            </span>
-            <button
-              class="remove-btn w-6 h-6 rounded flex items-center justify-center"
-              @click.stop="removeFromHistory(share.shareCode)"
-              title="移除记录"
-            >
-              <Icon name="close-line" :size="12" />
-            </button>
-          </div>
-        </div>
+        </el-tooltip>
       </div>
     </div>
 
@@ -548,6 +635,19 @@ onMounted(async () => {
 .history-tag.member {
   background: var(--bg-input);
   color: var(--muted);
+}
+
+/* 状态标签 */
+.status-tag {
+  font-size: 10px;
+}
+.status-tag.closed {
+  background: rgba(245, 108, 108, 0.15);
+  color: #f56c6c;
+}
+.status-tag.expired {
+  background: rgba(230, 162, 60, 0.15);
+  color: #e6a23c;
 }
 
 .remove-btn {

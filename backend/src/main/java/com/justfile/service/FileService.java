@@ -3,10 +3,13 @@ package com.justfile.service;
 import com.justfile.common.Constants;
 import com.justfile.common.ErrorCode;
 import com.justfile.dto.response.FileResponse;
+import com.justfile.dto.response.ShareResponse;
 import com.justfile.entity.FileEntity;
+import com.justfile.entity.Share;
 import com.justfile.entity.ShareMember;
 import com.justfile.exception.BusinessException;
 import com.justfile.mapper.FileMapper;
+import com.justfile.mapper.ShareMapper;
 import com.justfile.mapper.ShareMemberMapper;
 import com.justfile.mapper.OperationLogMapper;
 import com.justfile.storage.StorageStrategy;
@@ -32,6 +35,7 @@ import java.util.stream.Collectors;
 public class FileService {
 
     private final FileMapper fileMapper;
+    private final ShareMapper shareMapper;
     private final ShareMemberMapper memberMapper;
     private final OperationLogMapper logMapper;
     private final StorageStrategyFactory storageFactory;
@@ -72,7 +76,8 @@ public class FileService {
     /**
      * 下载文件
      * <p>
-     * 验证成员身份和文件状态后从存储系统获取文件
+     * 验证成员身份、分享状态和文件状态后从存储系统获取文件
+     * 已过期的分享不允许下载文件
      * </p>
      *
      * @param fileId     文件 ID
@@ -86,6 +91,19 @@ public class FileService {
         // 检查成员身份
         if (!shareService.isMember(file.getShareId(), fingerprint)) {
             throw new BusinessException(ErrorCode.NOT_MEMBER);
+        }
+
+        // 检查分享状态（已过期不允许下载）
+        Share share = shareMapper.selectById(file.getShareId());
+        if (share != null) {
+            // 检查是否过期
+            if (share.getExpiresAt() != null && share.getExpiresAt().isBefore(java.time.LocalDateTime.now())) {
+                throw new BusinessException(ErrorCode.SHARE_EXPIRED_DOWNLOAD);
+            }
+            // 检查是否关闭
+            if (share.getStatus() == Constants.SHARE_STATUS_CLOSED) {
+                throw new BusinessException(ErrorCode.SHARE_CLOSED);
+            }
         }
 
         // 检查文件状态
@@ -157,7 +175,7 @@ public class FileService {
         response.setFileSize(file.getFileSize());
         response.setMimeType(file.getMimeType());
         response.setUploadState(file.getUploadState());
-        response.setCreatedAt(file.getCreatedAt());
+        response.setCreatedAt(ShareResponse.toTimestamp(file.getCreatedAt()));
 
         // 获取上传者名称
         ShareMember uploader = memberMapper.selectByShareIdAndFingerprint(

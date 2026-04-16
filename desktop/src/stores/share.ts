@@ -2,6 +2,7 @@ import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { shareApi, getFingerprint } from '@/api/share'
 import type { Share, ShareInfo, SharedFile, CreateShareRequest, JoinShareRequest, UploadProgress } from '@/types/share'
+import { SHARE_STATUS } from '@/types/share'
 
 export const useShareStore = defineStore('share', () => {
   // State
@@ -18,12 +19,49 @@ export const useShareStore = defineStore('share', () => {
   const _isCreator = ref<boolean>(false)
 
   // Computed
-  const isCreator = computed(() => _isCreator.value)
+  const isCreator = computed(() => {
+    // 优先使用 currentShare 中的 creator 字段
+    if (currentShare.value?.creator !== undefined) {
+      return currentShare.value.creator
+    }
+    return _isCreator.value
+  })
+
+  /**
+   * 分享是否已过期
+   */
+  const isExpired = computed(() => {
+    return currentShare.value?.status === SHARE_STATUS.EXPIRED
+  })
+
+  /**
+   * 分享是否已关闭
+   */
+  const isClosed = computed(() => {
+    return currentShare.value?.status === SHARE_STATUS.CLOSED
+  })
+
+  /**
+   * 分享是否活跃（未过期且未关闭）
+   */
+  const isActive = computed(() => {
+    return currentShare.value?.status === SHARE_STATUS.ACTIVE
+  })
 
   const canUpload = computed(() => {
     if (!currentShare.value) return false
+    // 已过期或已关闭不允许上传
+    if (isExpired.value || isClosed.value) return false
     // 创建者始终可上传，其他成员根据分享模式判断
-    return _isCreator.value || currentShare.value.shareMode === 1
+    return isCreator.value || currentShare.value.shareMode === 1
+  })
+
+  /**
+   * 是否可以下载文件
+   * 已过期或已关闭不允许下载
+   */
+  const canDownload = computed(() => {
+    return isActive.value
   })
 
   // Actions
@@ -44,10 +82,8 @@ export const useShareStore = defineStore('share', () => {
   async function joinShare(shareCode: string, request: JoinShareRequest) {
     currentShare.value = await shareApi.joinShare(shareCode, request)
     await loadFiles()
-    // 通过检查成员列表判断是否为创建者
-    // 创建者的 role 为 1，但需要知道哪个成员是当前用户
-    // 由于后端不返回 fingerprint，我们通过创建者指纹比对
-    _isCreator.value = false // 默认非创建者，创建分享时会设置为 true
+    // 从后端返回的 creator 字段判断
+    _isCreator.value = currentShare.value.creator || false
     return currentShare.value
   }
 
@@ -59,6 +95,11 @@ export const useShareStore = defineStore('share', () => {
   async function deleteFile(fileId: number) {
     await shareApi.deleteFile(fileId)
     await loadFiles()
+  }
+
+  async function closeShare(shareCode: string) {
+    await shareApi.closeShare(shareCode)
+    reset()
   }
 
   function addUpload(upload: UploadProgress) {
@@ -99,12 +140,17 @@ export const useShareStore = defineStore('share', () => {
     uploads,
     fingerprint,
     isCreator,
+    isExpired,
+    isClosed,
+    isActive,
     canUpload,
+    canDownload,
     createShare,
     getShareInfo,
     joinShare,
     loadFiles,
     deleteFile,
+    closeShare,
     addUpload,
     updateUpload,
     removeUpload,

@@ -2,8 +2,6 @@ package com.justfile.dto.response;
 
 import lombok.Data;
 
-import java.time.LocalDateTime;
-
 /**
  * 分享信息响应 DTO
  * <p>
@@ -37,9 +35,17 @@ public class ShareInfoResponse {
     private Boolean hasPassword;
 
     /**
-     * 过期时间
+     * 过期时间（时间戳，毫秒）
      */
-    private LocalDateTime expiresAt;
+    private Long expiresAt;
+
+    /**
+     * 分享状态
+     * 0: 已关闭
+     * 1: 活跃中
+     * 2: 已过期
+     */
+    private Integer status;
 
     /**
      * 成员数量

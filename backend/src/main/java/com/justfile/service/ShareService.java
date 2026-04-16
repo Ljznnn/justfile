@@ -86,6 +86,9 @@ public class ShareService {
             shareCode = ShareCodeGenerator.generate(codeLength);
         } while (shareMapper.selectByShareCode(shareCode) != null);
 
+        // 当前时间
+        LocalDateTime now = LocalDateTime.now();
+
         // 创建分享实体
         Share share = new Share();
         share.setShareCode(shareCode);
@@ -93,6 +96,8 @@ public class ShareService {
         share.setCreatorFingerprint(fingerprint);
         share.setShareMode(request.getShareMode() != null ? request.getShareMode() : Constants.SHARE_MODE_CREATOR_ONLY);
         share.setStatus(Constants.SHARE_STATUS_ACTIVE);
+        share.setCreatedAt(now);
+        share.setUpdatedAt(now);
 
         // 设置密码（如果提供）
         if (request.getPassword() != null && !request.getPassword().isEmpty()) {
@@ -105,7 +110,7 @@ public class ShareService {
             if (expireHours > maxExpireHours) {
                 expireHours = maxExpireHours;
             }
-            share.setExpiresAt(LocalDateTime.now().plusHours(expireHours));
+            share.setExpiresAt(now.plusHours(expireHours));
         }
 
         shareMapper.insert(share);
@@ -116,6 +121,7 @@ public class ShareService {
         creator.setMemberFingerprint(fingerprint);
         creator.setMemberName(request.getCreatorName() != null ? request.getCreatorName() : "创建者");
         creator.setRole(Constants.MEMBER_ROLE_CREATOR);
+        creator.setJoinedAt(now);
         memberMapper.insert(creator);
 
         // 记录操作日志
@@ -124,13 +130,14 @@ public class ShareService {
 
         log.info("已创建分享: code={}, creator={}", shareCode, fingerprint);
 
-        return buildShareResponse(share, List.of(creator));
+        return buildShareResponse(share, List.of(creator), fingerprint);
     }
 
     /**
      * 获取分享信息
      * <p>
      * 返回分享的基本信息，用于加入分享前展示
+     * 允许查看已过期的分享信息
      * </p>
      *
      * @param shareCode 分享码
@@ -138,14 +145,26 @@ public class ShareService {
      */
     public ShareInfoResponse getShareInfo(String shareCode) {
         Share share = getByCode(shareCode);
-        validateShareActive(share);
+        // 检查分享是否关闭（已关闭的分享不允许查看）
+        if (share.getStatus() == Constants.SHARE_STATUS_CLOSED) {
+            throw new BusinessException(ErrorCode.SHARE_CLOSED);
+        }
+
+        // 更新过期状态
+        if (share.getExpiresAt() != null && share.getExpiresAt().isBefore(LocalDateTime.now())) {
+            if (share.getStatus() != Constants.SHARE_STATUS_EXPIRED) {
+                share.setStatus(Constants.SHARE_STATUS_EXPIRED);
+                shareMapper.updateById(share);
+            }
+        }
 
         ShareInfoResponse response = new ShareInfoResponse();
         response.setShareCode(share.getShareCode());
         response.setShareName(share.getShareName());
         response.setShareMode(share.getShareMode());
         response.setHasPassword(share.getPasswordHash() != null);
-        response.setExpiresAt(share.getExpiresAt());
+        response.setExpiresAt(ShareResponse.toTimestamp(share.getExpiresAt()));
+        response.setStatus(share.getStatus());
         response.setMemberCount(memberMapper.selectByShareId(share.getId()).size());
         response.setFileCount(fileMapper.selectByShareId(share.getId()).size());
 
@@ -156,6 +175,7 @@ public class ShareService {
      * 加入分享
      * <p>
      * 验证密码，添加新成员或更新现有成员的活跃时间
+     * 已关闭的分享不允许加入，已过期的分享仅允许已有成员进入查看
      * </p>
      *
      * @param shareCode  分享码
@@ -167,10 +187,38 @@ public class ShareService {
     @Transactional
     public ShareResponse joinShare(String shareCode, JoinShareRequest request, String fingerprint, String ipAddress) {
         Share share = getByCode(shareCode);
-        validateShareActive(share);
+        // 检查分享是否关闭
+        if (share.getStatus() == Constants.SHARE_STATUS_CLOSED) {
+            throw new BusinessException(ErrorCode.SHARE_CLOSED);
+        }
 
-        // 验证密码（如果需要）
-        if (share.getPasswordHash() != null) {
+        // 更新过期状态
+        if (share.getExpiresAt() != null && share.getExpiresAt().isBefore(LocalDateTime.now())) {
+            if (share.getStatus() != Constants.SHARE_STATUS_EXPIRED) {
+                share.setStatus(Constants.SHARE_STATUS_EXPIRED);
+                shareMapper.updateById(share);
+            }
+        }
+
+        // 检查是否已是成员
+        ShareMember existingMember = memberMapper.selectByShareIdAndFingerprint(share.getId(), fingerprint);
+        if (existingMember != null) {
+            // 已有成员可以进入查看（包括过期的分享）
+            existingMember.setLastActiveAt(LocalDateTime.now());
+            memberMapper.updateById(existingMember);
+            return buildShareResponse(share, memberMapper.selectByShareId(share.getId()), fingerprint);
+        }
+
+        // 新成员加入检查：已过期的分享不允许新成员加入
+        if (share.getStatus() == Constants.SHARE_STATUS_EXPIRED) {
+            throw new BusinessException(ErrorCode.SHARE_EXPIRED);
+        }
+
+        // 判断是否为创建者（通过 fingerprint 匹配）
+        boolean isCreator = fingerprint.equals(share.getCreatorFingerprint());
+
+        // 验证密码（创建者无需密码）
+        if (!isCreator && share.getPasswordHash() != null) {
             if (request.getPassword() == null || request.getPassword().isEmpty()) {
                 throw new BusinessException(ErrorCode.SHARE_PASSWORD_REQUIRED);
             }
@@ -179,21 +227,14 @@ public class ShareService {
             }
         }
 
-        // 检查是否已是成员
-        ShareMember existingMember = memberMapper.selectByShareIdAndFingerprint(share.getId(), fingerprint);
-        if (existingMember != null) {
-            // 更新最后活跃时间
-            existingMember.setLastActiveAt(LocalDateTime.now());
-            memberMapper.updateById(existingMember);
-            return buildShareResponse(share, memberMapper.selectByShareId(share.getId()));
-        }
-
         // 添加为新成员
+        LocalDateTime now = LocalDateTime.now();
         ShareMember member = new ShareMember();
         member.setShareId(share.getId());
         member.setMemberFingerprint(fingerprint);
         member.setMemberName(request.getMemberName() != null ? request.getMemberName() : "匿名用户");
-        member.setRole(Constants.MEMBER_ROLE_PARTICIPANT);
+        member.setRole(isCreator ? Constants.MEMBER_ROLE_CREATOR : Constants.MEMBER_ROLE_PARTICIPANT);
+        member.setJoinedAt(now);
         memberMapper.insert(member);
 
         // 记录操作日志
@@ -202,7 +243,7 @@ public class ShareService {
 
         log.info("成员加入分享: code={}, member={}", shareCode, fingerprint);
 
-        return buildShareResponse(share, memberMapper.selectByShareId(share.getId()));
+        return buildShareResponse(share, memberMapper.selectByShareId(share.getId()), fingerprint);
     }
 
     /**
@@ -329,25 +370,31 @@ public class ShareService {
     /**
      * 构建分享响应
      *
-     * @param share  分享实体
-     * @param members 成员列表
+     * @param share       分享实体
+     * @param members     成员列表
+     * @param fingerprint 当前用户指纹
      * @return 分享响应
      */
-    private ShareResponse buildShareResponse(Share share, List<ShareMember> members) {
+    private ShareResponse buildShareResponse(Share share, List<ShareMember> members, String fingerprint) {
         ShareResponse response = new ShareResponse();
         response.setShareId(share.getId());
         response.setShareCode(share.getShareCode());
         response.setShareName(share.getShareName());
         response.setShareMode(share.getShareMode());
-        response.setExpiresAt(share.getExpiresAt());
-        response.setCreatedAt(share.getCreatedAt());
+        response.setExpiresAt(ShareResponse.toTimestamp(share.getExpiresAt()));
+        response.setCreatedAt(ShareResponse.toTimestamp(share.getCreatedAt()));
+        response.setStatus(share.getStatus());
+        boolean isCreator = fingerprint.equals(share.getCreatorFingerprint());
+        response.setCreator(isCreator);
+        log.debug("buildShareResponse: fingerprint={}, creatorFingerprint={}, isCreator={}",
+                fingerprint, share.getCreatorFingerprint(), isCreator);
         response.setMembers(members.stream()
                 .map(m -> {
                     MemberResponse mr = new MemberResponse();
                     mr.setId(m.getId());
                     mr.setMemberName(m.getMemberName());
                     mr.setRole(m.getRole());
-                    mr.setJoinedAt(m.getJoinedAt());
+                    mr.setJoinedAt(ShareResponse.toTimestamp(m.getJoinedAt()));
                     return mr;
                 })
                 .collect(Collectors.toList()));
