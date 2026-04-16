@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import Icon from '@/components/common/Icon.vue'
@@ -16,9 +16,22 @@ const shareCode = route.params.code as string
 const loading = ref(true)
 const fileInput = ref<HTMLInputElement | null>(null)
 
+// Tab state - 'files' | 'uploads'
+const activeTab = ref<'files' | 'uploads'>('files')
+
 // Upload state
 const uploadList = ref<UploadProgress[]>([])
 const API_BASE = 'http://localhost:8080/justfile/api'
+
+// 计算上传中的任务数量
+const uploadingCount = computed(() => {
+  return uploadList.value.filter(u => u.status === 'uploading').length
+})
+
+// 计算已完成的上传数量
+const completedCount = computed(() => {
+  return uploadList.value.filter(u => u.status === 'completed').length
+})
 
 // Format file size
 function formatSize(bytes: number): string {
@@ -73,6 +86,10 @@ async function handleDrop(event: DragEvent) {
   }
 }
 
+/**
+ * 上传文件
+ * @param file 要上传的文件
+ */
 async function uploadFile(file: File) {
   const uploadIndex = uploadList.value.length
   const progress: UploadProgress = {
@@ -84,6 +101,9 @@ async function uploadFile(file: File) {
     status: 'uploading'
   }
   uploadList.value.push(progress)
+
+  // 自动切换到上传列表标签页
+  activeTab.value = 'uploads'
 
   console.log('[Tus上传] 开始上传:', {
     filename: file.name,
@@ -167,7 +187,10 @@ async function downloadFile(file: SharedFile) {
   }
 }
 
-// Delete file
+/**
+ * 删除文件
+ * @param file 要删除的文件
+ */
 async function deleteFile(file: SharedFile) {
   try {
     await ElMessageBox.confirm(`确定删除文件 "${file.originalName}"？`, '删除确认', {
@@ -182,7 +205,16 @@ async function deleteFile(file: SharedFile) {
   }
 }
 
-// Close share
+/**
+ * 清除已完成的上传记录
+ */
+function clearCompletedUploads() {
+  uploadList.value = uploadList.value.filter(u => u.status !== 'completed')
+}
+
+/**
+ * 关闭分享
+ */
 async function closeShare() {
   try {
     await ElMessageBox.confirm('确定关闭此分享？关闭后所有成员将无法访问。', '关闭确认', {
@@ -198,7 +230,9 @@ async function closeShare() {
   }
 }
 
-// Copy share code
+/**
+ * 复制分享码
+ */
 function copyShareCode() {
   navigator.clipboard.writeText(shareCode)
   ElMessage.success('分享码已复制')
@@ -264,18 +298,17 @@ onUnmounted(() => {
       <!-- Upload area -->
       <div v-if="shareStore.canUpload" class="mb-6">
         <div
-          class="upload-area p-8 text-center cursor-pointer"
+          class="upload-area p-6 text-center cursor-pointer"
           @click="() => fileInput?.click()"
           @dragover.prevent
           @drop.prevent="handleDrop"
         >
-          <div class="upload-icon-wrapper mb-3">
-            <Icon name="upload-cloud-2-line" :size="48" class="upload-icon" />
+          <div class="upload-icon-wrapper mb-2">
+            <Icon name="upload-cloud-2-line" :size="36" class="upload-icon" />
           </div>
-          <p class="upload-title text-secondary text-base font-medium mb-1">点击此处上传文件</p>
-          <p class="upload-subtitle text-muted text-sm mb-2">或拖拽文件到此区域</p>
+          <p class="upload-title text-secondary text-sm font-medium mb-1">点击上传或拖拽文件到此处</p>
           <p class="upload-hint text-xs">
-            <span class="upload-badge">支持分片上传</span>
+            <span class="upload-badge">分片上传</span>
             <span class="upload-badge">断点续传</span>
             <span class="upload-badge">最大 500MB</span>
           </p>
@@ -291,93 +324,129 @@ onUnmounted(() => {
 
       <!-- No upload permission hint -->
       <div v-else class="mb-6">
-        <div class="no-upload-area p-6 text-center">
-          <Icon name="lock-line" :size="24" class="text-muted mb-2" />
+        <div class="no-upload-area p-4 text-center">
+          <Icon name="lock-line" :size="20" class="text-muted mb-1" />
           <p class="text-muted text-sm">当前分享模式仅允许创建者上传文件</p>
         </div>
       </div>
 
-      <!-- Upload progress -->
-      <div v-if="uploadList.length > 0" class="mb-6 space-y-2">
-        <h3 class="text-secondary text-sm font-medium mb-2">上传进度</h3>
-        <div
-          v-for="(upload, index) in uploadList"
-          :key="index"
-          class="theme-card p-3 flex items-center gap-3"
-        >
-          <Icon
-            :name="upload.status === 'completed' ? 'check-line' : upload.status === 'error' ? 'close-line' : 'loader-4-line'"
-            :size="16"
-            :class="upload.status === 'completed' ? 'text-green-400' : upload.status === 'error' ? 'text-red-400' : 'text-accent animate-spin'"
-          />
-          <div class="flex-1 min-w-0">
-            <p class="text-primary text-sm truncate">{{ upload.filename }}</p>
-            <div class="flex items-center gap-2 mt-1">
-              <div class="flex-1 h-1.5 rounded-full" style="background: var(--bg-input)">
-                <div
-                  class="h-full rounded-full transition-all"
-                  :style="{
-                    width: upload.progress + '%',
-                    background: upload.status === 'error' ? '#f56c6c' : 'var(--accent)'
-                  }"
-                />
-              </div>
-              <span class="text-muted text-xs w-12 text-right">
-                {{ upload.progress.toFixed(0) }}%
-              </span>
-            </div>
-          </div>
-          <span class="text-muted text-xs">{{ formatSize(upload.uploadedBytes) }} / {{ formatSize(upload.totalBytes) }}</span>
-        </div>
-      </div>
-
-      <!-- File list -->
-      <div>
-        <h3 class="text-secondary text-sm font-medium mb-3">
-          文件列表 ({{ shareStore.files.length }})
-        </h3>
-
-        <div v-if="shareStore.files.length === 0" class="theme-card p-8 text-center">
-          <Icon name="folder-open-line" :size="32" class="text-muted mb-2" />
-          <p class="text-muted text-sm">暂无文件</p>
-        </div>
-
-        <!-- 文件列表区域，限制最大高度并支持滚动 -->
-        <div v-else class="file-list-container space-y-2">
-          <div
-            v-for="file in shareStore.files"
-            :key="file.id"
-            class="theme-card p-3 flex items-center gap-3"
+      <!-- Tabs: 文件列表 / 上传列表 -->
+      <div class="tabs-container">
+        <div class="tabs-header flex gap-1 mb-4">
+          <button
+            class="tab-btn"
+            :class="{ active: activeTab === 'files' }"
+            @click="activeTab = 'files'"
           >
-            <Icon
-              :name="file.mimeType?.startsWith('image/') ? 'image-line' : file.mimeType?.startsWith('video/') ? 'video-line' : 'file-line'"
-              :size="20"
-              class="text-accent flex-shrink-0"
-            />
-            <div class="flex-1 min-w-0">
-              <p class="text-primary text-sm truncate">{{ file.originalName }}</p>
-              <p class="text-muted text-xs mt-0.5">
-                {{ formatSize(file.fileSize) }} · {{ file.uploaderName }} · {{ formatTime(file.createdAt) }}
-              </p>
-            </div>
-            <div class="flex items-center gap-1">
-              <button
-                class="theme-button px-2 py-1 text-xs"
-                @click="downloadFile(file)"
-                title="下载"
-              >
-                <Icon name="download-line" :size="14" />
-              </button>
-              <button
-                v-if="shareStore.isCreator || file.uploaderName === 'You'"
-                class="theme-button px-2 py-1 text-xs text-red-400"
-                @click="deleteFile(file)"
-                title="删除"
-              >
-                <Icon name="delete-bin-line" :size="14" />
-              </button>
+            <Icon name="folder-line" :size="14" />
+            <span>文件列表</span>
+            <span class="tab-count">{{ shareStore.files.length }}</span>
+          </button>
+          <button
+            class="tab-btn"
+            :class="{ active: activeTab === 'uploads', 'has-uploading': uploadingCount > 0 }"
+            @click="activeTab = 'uploads'"
+          >
+            <Icon name="upload-2-line" :size="14" />
+            <span>上传列表</span>
+            <span v-if="uploadList.length > 0" class="tab-count">{{ uploadList.length }}</span>
+            <span v-if="uploadingCount > 0" class="uploading-indicator"></span>
+          </button>
+        </div>
+
+        <!-- 文件列表 Tab -->
+        <div v-show="activeTab === 'files'" class="tab-content">
+          <div v-if="shareStore.files.length === 0" class="theme-card p-8 text-center">
+            <Icon name="folder-open-line" :size="32" class="text-muted mb-2" />
+            <p class="text-muted text-sm">暂无文件</p>
+          </div>
+
+          <div v-else class="list-container space-y-2">
+            <div
+              v-for="file in shareStore.files"
+              :key="file.id"
+              class="theme-card p-3 flex items-center gap-3"
+            >
+              <Icon
+                :name="file.mimeType?.startsWith('image/') ? 'image-line' : file.mimeType?.startsWith('video/') ? 'video-line' : 'file-line'"
+                :size="20"
+                class="text-accent flex-shrink-0"
+              />
+              <div class="flex-1 min-w-0">
+                <p class="text-primary text-sm truncate">{{ file.originalName }}</p>
+                <p class="text-muted text-xs mt-0.5">
+                  {{ formatSize(file.fileSize) }} · {{ file.uploaderName }} · {{ formatTime(file.createdAt) }}
+                </p>
+              </div>
+              <div class="flex items-center gap-1">
+                <button
+                  class="theme-button px-2 py-1 text-xs"
+                  @click="downloadFile(file)"
+                  title="下载"
+                >
+                  <Icon name="download-line" :size="14" />
+                </button>
+                <button
+                  v-if="shareStore.isCreator || file.uploaderName === 'You'"
+                  class="theme-button px-2 py-1 text-xs text-red-400"
+                  @click="deleteFile(file)"
+                  title="删除"
+                >
+                  <Icon name="delete-bin-line" :size="14" />
+                </button>
+              </div>
             </div>
           </div>
+        </div>
+
+        <!-- 上传列表 Tab -->
+        <div v-show="activeTab === 'uploads'" class="tab-content">
+          <div v-if="uploadList.length === 0" class="theme-card p-8 text-center">
+            <Icon name="upload-2-line" :size="32" class="text-muted mb-2" />
+            <p class="text-muted text-sm">暂无上传任务</p>
+          </div>
+
+          <template v-else>
+            <!-- 清除已完成按钮 -->
+            <div v-if="completedCount > 0" class="flex justify-end mb-2">
+              <button class="theme-button px-3 py-1 text-xs text-muted" @click="clearCompletedUploads">
+                <Icon name="delete-bin-line" :size="12" class="mr-1" />
+                清除已完成 ({{ completedCount }})
+              </button>
+            </div>
+
+            <div class="list-container space-y-2">
+              <div
+                v-for="(upload, index) in uploadList"
+                :key="index"
+                class="theme-card p-3 flex items-center gap-3"
+              >
+                <Icon
+                  :name="upload.status === 'completed' ? 'check-line' : upload.status === 'error' ? 'close-line' : 'loader-4-line'"
+                  :size="16"
+                  :class="upload.status === 'completed' ? 'text-green-400' : upload.status === 'error' ? 'text-red-400' : 'text-accent animate-spin'"
+                />
+                <div class="flex-1 min-w-0">
+                  <p class="text-primary text-sm truncate">{{ upload.filename }}</p>
+                  <div class="flex items-center gap-2 mt-1">
+                    <div class="flex-1 h-1.5 rounded-full" style="background: var(--bg-input)">
+                      <div
+                        class="h-full rounded-full transition-all"
+                        :style="{
+                          width: upload.progress + '%',
+                          background: upload.status === 'error' ? '#f56c6c' : 'var(--accent)'
+                        }"
+                      />
+                    </div>
+                    <span class="text-muted text-xs w-12 text-right">
+                      {{ upload.progress.toFixed(0) }}%
+                    </span>
+                  </div>
+                </div>
+                <span class="text-muted text-xs">{{ formatSize(upload.uploadedBytes) }} / {{ formatSize(upload.totalBytes) }}</span>
+              </div>
+            </div>
+          </template>
         </div>
       </div>
 
@@ -419,7 +488,7 @@ onUnmounted(() => {
 }
 .upload-area:hover .upload-icon {
   color: var(--accent);
-  transform: translateY(-4px);
+  transform: translateY(-2px);
 }
 .upload-area:hover .upload-title {
   color: var(--accent);
@@ -457,30 +526,101 @@ onUnmounted(() => {
   border-radius: 8px;
 }
 
-/* File list container - 限制高度，支持滚动 */
-.file-list-container {
-  max-height: 400px;
+/* Tabs styles */
+.tabs-container {
+  background: var(--bg-card);
+  border: 1px solid var(--border-card);
+  border-radius: 12px;
+  padding: 16px;
+}
+
+.tabs-header {
+  border-bottom: 1px solid var(--border-card);
+  padding-bottom: 12px;
+  margin-bottom: 16px;
+}
+
+.tab-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  font-size: 13px;
+  color: var(--muted);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  position: relative;
+}
+
+.tab-btn:hover {
+  color: var(--secondary);
+  background: var(--bg-input);
+}
+
+.tab-btn.active {
+  color: var(--accent);
+  background: rgba(var(--accent-rgb), 0.1);
+  border-color: var(--accent);
+}
+
+.tab-count {
+  background: var(--bg-input);
+  color: var(--muted);
+  font-size: 11px;
+  padding: 1px 6px;
+  border-radius: 10px;
+  margin-left: 2px;
+}
+
+.tab-btn.active .tab-count {
+  background: rgba(var(--accent-rgb), 0.2);
+  color: var(--accent);
+}
+
+/* 上传中指示器 */
+.uploading-indicator {
+  width: 6px;
+  height: 6px;
+  background: #f56c6c;
+  border-radius: 50%;
+  animation: pulse 1.5s infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.5; transform: scale(1.2); }
+}
+
+.tab-btn.has-uploading {
+  color: var(--accent);
+}
+
+/* List container - 限制高度，支持滚动 */
+.list-container {
+  max-height: 350px;
   overflow-y: auto;
   padding-right: 4px;
 }
 
-/* 滚动条样式 */
-.file-list-container {
+.list-container {
   scrollbar-width: thin;
   scrollbar-color: var(--border-input) transparent;
 }
-.file-list-container::-webkit-scrollbar {
+.list-container::-webkit-scrollbar {
   width: 6px;
 }
-.file-list-container::-webkit-scrollbar-track {
+.list-container::-webkit-scrollbar-track {
   background: transparent;
   border-radius: 3px;
 }
-.file-list-container::-webkit-scrollbar-thumb {
+.list-container::-webkit-scrollbar-thumb {
   background: var(--border-input);
   border-radius: 3px;
 }
-.file-list-container::-webkit-scrollbar-thumb:hover {
+.list-container::-webkit-scrollbar-thumb:hover {
   background: var(--muted);
 }
 </style>
