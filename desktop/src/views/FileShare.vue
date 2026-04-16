@@ -10,16 +10,38 @@ import type { CreateShareRequest, JoinShareRequest } from '@/types/share'
 const router = useRouter()
 const shareStore = useShareStore()
 
+/**
+ * 生成随机昵称
+ * 组合形容词和名词，生成有趣的昵称
+ */
+function generateRandomNickname(): string {
+  const adjectives = [
+    '犯困的', '摸鱼的', '发呆的', '熬夜的', '加班的', '打盹的',
+    '佛系的', '社恐的', '社牛的', '内卷的', '躺平的', '摆烂的',
+    '快乐的', '忧伤的', '高冷的', '呆萌的', '傲娇的', '调皮的',
+    '勤劳的', '懒惰的', '机智的', '憨憨的', '聪明的', '迷糊的'
+  ]
+  const nouns = [
+    '小乌龟', '小猫咪', '小狗狗', '小兔子', '小企鹅', '小熊猫',
+    '程序员', '设计师', '产品经理', '打工人', '干饭人', '摸鱼达人',
+    '小可爱', '大聪明', '小迷糊', '老司机', '萌新', '大佬',
+    '咸鱼', '卷王', '社畜', '小透明', '大魔王', '小天使'
+  ]
+  const adj = adjectives[Math.floor(Math.random() * adjectives.length)]
+  const noun = nouns[Math.floor(Math.random() * nouns.length)]
+  return `${adj}${noun}`
+}
+
 // Tab state
 const activeTab = ref<'create' | 'join'>('create')
 
-// Create form - 默认有效期24小时
+// Create form - 默认有效期24小时，昵称随机生成
 const createForm = ref<CreateShareRequest>({
   shareName: '',
   password: '',
   shareMode: 0,
   expiresInHours: 24,
-  creatorName: ''
+  creatorName: generateRandomNickname()
 })
 const createLoading = ref(false)
 
@@ -27,7 +49,7 @@ const createLoading = ref(false)
 const joinCode = ref('')
 const joinForm = ref<JoinShareRequest>({
   password: '',
-  memberName: ''
+  memberName: generateRandomNickname()
 })
 const joinLoading = ref(false)
 
@@ -44,6 +66,7 @@ const expireOptions = [
 interface HistoryShare {
   shareCode: string
   shareId: number
+  shareName: string | null
   isCreator: boolean
   createdAt: string
   expiresAt: string | null
@@ -70,7 +93,7 @@ function loadHistory() {
 }
 
 /**
- * 刷新历史分享记录的信息（成员数、文件数、过期时间）
+ * 刷新历史分享记录的信息（成员数、文件数、过期时间、分享名称）
  * 在每次进入页面时调用
  */
 async function refreshHistoryInfo() {
@@ -86,6 +109,7 @@ async function refreshHistoryInfo() {
           share.memberCount = info.memberCount
           share.fileCount = info.fileCount
           share.expiresAt = info.expiresAt
+          share.shareName = info.shareName
         })
         .catch(() => {
           // 分享可能已过期或被删除，保持原数据
@@ -104,15 +128,17 @@ async function refreshHistoryInfo() {
  * @param share 分享信息
  * @param isCreator 是否为创建者
  */
-function saveToHistory(share: { shareCode: string; shareId: number; expiresAt: string | null }, isCreator: boolean, memberCount: number = 1, fileCount: number = 0) {
+function saveToHistory(share: { shareCode: string; shareId: number; shareName: string | null; expiresAt: string | null }, isCreator: boolean, memberCount: number = 1, fileCount: number = 0) {
   const existing = historyShares.value.findIndex(h => h.shareCode === share.shareCode)
   if (existing >= 0) {
     historyShares.value[existing].memberCount = memberCount
     historyShares.value[existing].fileCount = fileCount
+    historyShares.value[existing].shareName = share.shareName
   } else {
     historyShares.value.unshift({
       shareCode: share.shareCode,
       shareId: share.shareId,
+      shareName: share.shareName,
       isCreator,
       createdAt: new Date().toISOString(),
       expiresAt: share.expiresAt,
@@ -266,7 +292,8 @@ onMounted(async () => {
           </div>
           <div class="flex-1 min-w-0">
             <div class="flex items-center gap-2">
-              <span class="text-primary text-sm font-mono font-medium">{{ share.shareCode }}</span>
+              <span class="text-primary text-sm font-medium">{{ share.shareName || share.shareCode }}</span>
+              <span v-if="share.shareName" class="text-muted text-xs font-mono">{{ share.shareCode }}</span>
             </div>
             <p class="text-muted text-xs mt-1">
               {{ share.memberCount }}人 · {{ share.fileCount }}文件 · {{ formatTime(share.expiresAt) }}
@@ -317,7 +344,6 @@ onMounted(async () => {
           placeholder="如：项目资料分享"
           maxlength="100"
         />
-        <p class="text-xs text-muted mt-1">类似群组名称，所有人可见</p>
       </div>
 
       <div>
