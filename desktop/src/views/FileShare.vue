@@ -13,11 +13,11 @@ const shareStore = useShareStore()
 // Tab state
 const activeTab = ref<'create' | 'join'>('create')
 
-// Create form
+// Create form - 默认有效期24小时
 const createForm = ref<CreateShareRequest>({
   password: '',
   shareMode: 0,
-  expiresInHours: undefined,
+  expiresInHours: 24,
   creatorName: ''
 })
 const createLoading = ref(false)
