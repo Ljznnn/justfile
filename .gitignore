@@ -11,6 +11,12 @@ dist/
 dist-electron/
 release/
 
+# Backend build
+backend/target/
+
+# Backend uploads (user uploaded files)
+backend/uploads/
+
 # IDE
 .vscode/
 .idea/
@@ -25,3 +31,6 @@ Thumbs.db
 
 # Electron
 *.node
+
+# Claude Code
+.claude/
