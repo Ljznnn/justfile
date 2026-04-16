@@ -365,7 +365,7 @@ onUnmounted(() => {
             <div
               v-for="file in shareStore.files"
               :key="file.id"
-              class="theme-card p-3 flex items-center gap-3"
+              class="file-item theme-card p-3 flex items-center gap-3"
             >
               <Icon
                 :name="file.mimeType?.startsWith('image/') ? 'image-line' : file.mimeType?.startsWith('video/') ? 'video-line' : 'file-line'"
@@ -419,7 +419,7 @@ onUnmounted(() => {
               <div
                 v-for="(upload, index) in uploadList"
                 :key="index"
-                class="theme-card p-3 flex items-center gap-3"
+                class="file-item theme-card p-3 flex items-center gap-3"
               >
                 <Icon
                   :name="upload.status === 'completed' ? 'check-line' : upload.status === 'error' ? 'close-line' : 'loader-4-line'"
@@ -602,7 +602,8 @@ onUnmounted(() => {
 .list-container {
   max-height: 350px;
   overflow-y: auto;
-  padding-right: 4px;
+  padding: 4px;
+  margin: -4px;
 }
 
 .list-container {
@@ -622,5 +623,15 @@ onUnmounted(() => {
 }
 .list-container::-webkit-scrollbar-thumb:hover {
   background: var(--muted);
+}
+
+/* 文件项 hover 效果 - 使用边框和背景色变化，避免 transform 导致遮挡 */
+.file-item {
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+.file-item:hover {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent);
+  transform: none; /* 覆盖全局 theme-card 的 translateY */
 }
 </style>
