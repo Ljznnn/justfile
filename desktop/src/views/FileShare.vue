@@ -43,6 +43,20 @@ const createForm = ref<CreateShareRequest>({
   expiresInHours: 24,
   creatorName: generateRandomNickname()
 })
+
+/**
+ * 重新生成随机昵称
+ */
+function regenerateNickname() {
+  createForm.value.creatorName = generateRandomNickname()
+}
+
+/**
+ * 重新生成加入昵称
+ */
+function regenerateJoinNickname() {
+  joinForm.value.memberName = generateRandomNickname()
+}
 const createLoading = ref(false)
 
 // Join form
@@ -336,24 +350,34 @@ onMounted(async () => {
     <!-- Create Form -->
     <div v-if="activeTab === 'create'" class="theme-card p-6 space-y-4">
       <div>
-        <label class="block text-sm text-muted mb-1.5">分享名称（可选）</label>
+        <label class="block text-sm text-secondary font-medium mb-1.5">分享名称</label>
         <input
           v-model="createForm.shareName"
           type="text"
           class="theme-input w-full px-3 py-2 text-sm"
-          placeholder="如：项目资料分享"
+          placeholder="给这个分享起个名字吧"
           maxlength="100"
         />
       </div>
 
       <div>
         <label class="block text-sm text-muted mb-1.5">你的昵称</label>
-        <input
-          v-model="createForm.creatorName"
-          type="text"
-          class="theme-input w-full px-3 py-2 text-sm"
-          placeholder="你的昵称"
-        />
+        <div class="flex gap-2">
+          <input
+            v-model="createForm.creatorName"
+            type="text"
+            class="theme-input flex-1 px-3 py-2 text-sm"
+            placeholder="你的昵称"
+          />
+          <button
+            type="button"
+            class="theme-button px-2 py-1 text-xs flex items-center gap-1"
+            @click="regenerateNickname"
+            title="换一个"
+          >
+            <Icon name="refresh-line" :size="14" />
+          </button>
+        </div>
       </div>
 
       <div>
@@ -420,12 +444,22 @@ onMounted(async () => {
 
       <div>
         <label class="block text-sm text-muted mb-1.5">你的昵称</label>
-        <input
-          v-model="joinForm.memberName"
-          type="text"
-          class="theme-input w-full px-3 py-2 text-sm"
-          placeholder="你的昵称"
-        />
+        <div class="flex gap-2">
+          <input
+            v-model="joinForm.memberName"
+            type="text"
+            class="theme-input flex-1 px-3 py-2 text-sm"
+            placeholder="你的昵称"
+          />
+          <button
+            type="button"
+            class="theme-button px-2 py-1 text-xs flex items-center gap-1"
+            @click="regenerateJoinNickname"
+            title="换一个"
+          >
+            <Icon name="refresh-line" :size="14" />
+          </button>
+        </div>
       </div>
 
       <div>

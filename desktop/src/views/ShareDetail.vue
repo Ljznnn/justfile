@@ -336,7 +336,7 @@ onUnmounted(() => {
               </button>
             </template>
             <template v-else>
-              <h1 class="text-primary font-semibold title-line">
+              <h1 class="text-primary font-semibold share-title">
                 {{ shareStore.currentShare.shareName || '分享空间' }}
               </h1>
               <button
@@ -349,7 +349,7 @@ onUnmounted(() => {
               </button>
             </template>
           </div>
-          <div class="flex items-center gap-3 mt-2">
+          <div class="flex items-center gap-3 mt-1">
             <span class="text-accent font-mono text-sm tracking-wider">{{ shareCode }}</span>
             <button class="theme-button px-2 py-1 text-xs" @click="copyShareCode">
               <Icon name="clipboard-line" :size="12" />
@@ -552,6 +552,12 @@ onUnmounted(() => {
 .text-accent { color: var(--accent-text); }
 .text-red-400 { color: #f56c6c; }
 .text-green-400 { color: #67c23a; }
+
+/* 分享名称标题样式 */
+.share-title {
+  font-size: 1.25rem;
+  line-height: 1.5;
+}
 
 /* Upload area styles */
 .upload-area {
