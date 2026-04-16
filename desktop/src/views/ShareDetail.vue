@@ -342,7 +342,8 @@ onUnmounted(() => {
           <p class="text-muted text-sm">暂无文件</p>
         </div>
 
-        <div v-else class="space-y-2">
+        <!-- 文件列表区域，限制最大高度并支持滚动 -->
+        <div v-else class="file-list-container space-y-2">
           <div
             v-for="file in shareStore.files"
             :key="file.id"
@@ -454,5 +455,32 @@ onUnmounted(() => {
   background: var(--bg-card);
   border: 1px solid var(--border-card);
   border-radius: 8px;
+}
+
+/* File list container - 限制高度，支持滚动 */
+.file-list-container {
+  max-height: 400px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+/* 滚动条样式 */
+.file-list-container {
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-input) transparent;
+}
+.file-list-container::-webkit-scrollbar {
+  width: 6px;
+}
+.file-list-container::-webkit-scrollbar-track {
+  background: transparent;
+  border-radius: 3px;
+}
+.file-list-container::-webkit-scrollbar-thumb {
+  background: var(--border-input);
+  border-radius: 3px;
+}
+.file-list-container::-webkit-scrollbar-thumb:hover {
+  background: var(--muted);
 }
 </style>
