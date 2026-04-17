@@ -1,9 +1,12 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
+import { useRoute } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import imageCompression from 'browser-image-compression'
 import UploadZone from '@/components/common/UploadZone.vue'
 import Icon from '@/components/common/Icon.vue'
+
+const route = useRoute()
 
 interface Result {
   file: string
@@ -153,6 +156,19 @@ const downloadAll = async () => {
 }
 
 const clearResults = () => results.value = []
+
+/**
+ * 处理从悬浮球传来的文件
+ * 注意：由于安全限制，无法直接访问拖放文件的完整路径
+ * 这里仅做演示，实际使用需要用户重新选择文件
+ */
+onMounted(() => {
+  const fileQuery = route.query.file as string
+  if (fileQuery) {
+    // 显示提示信息
+    ElMessage.info('请从本地选择文件进行压缩')
+  }
+})
 </script>
 
 <template>

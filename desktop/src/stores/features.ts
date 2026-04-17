@@ -8,6 +8,10 @@ export interface Feature {
   icon: string
   route: string
   category: string
+  /** 支持的文件扩展名列表 */
+  supportedExtensions?: string[]
+  /** 是否接受任意文件类型 */
+  acceptAnyFile?: boolean
 }
 
 export const useFeaturesStore = defineStore('features', () => {
@@ -24,7 +28,8 @@ export const useFeaturesStore = defineStore('features', () => {
       description: '创建或加入共享，安全传输文件',
       icon: 'share',
       route: '/share',
-      category: 'share'
+      category: 'share',
+      acceptAnyFile: true  // 支持所有文件类型
     },
     {
       id: 'image-compress',
@@ -32,7 +37,8 @@ export const useFeaturesStore = defineStore('features', () => {
       description: '智能压缩图片，保持画质',
       icon: 'compress',
       route: '/image/compress',
-      category: 'image'
+      category: 'image',
+      supportedExtensions: ['.jpg', '.jpeg', '.png', '.webp', '.gif']
     },
     {
       id: 'image-upload',
@@ -40,7 +46,8 @@ export const useFeaturesStore = defineStore('features', () => {
       description: '上传图片到 GitHub 仓库',
       icon: 'upload',
       route: '/image/upload',
-      category: 'image'
+      category: 'image',
+      supportedExtensions: ['.jpg', '.jpeg', '.png', '.webp', '.gif']
     },
     {
       id: 'image-split',
@@ -48,7 +55,8 @@ export const useFeaturesStore = defineStore('features', () => {
       description: '九宫格切图，自定义行列',
       icon: 'split',
       route: '/image/split',
-      category: 'image'
+      category: 'image',
+      supportedExtensions: ['.jpg', '.jpeg', '.png', '.webp', '.gif']
     },
     {
       id: 'image-editor',
@@ -56,7 +64,8 @@ export const useFeaturesStore = defineStore('features', () => {
       description: '裁剪、标注、滤镜等',
       icon: 'edit',
       route: '/image/editor',
-      category: 'image'
+      category: 'image',
+      supportedExtensions: ['.jpg', '.jpeg', '.png', '.webp', '.gif']
     },
     {
       id: 'pdf-editor',
@@ -64,7 +73,8 @@ export const useFeaturesStore = defineStore('features', () => {
       description: '页面排序、删除、旋转',
       icon: 'edit',
       route: '/pdf/editor',
-      category: 'office'
+      category: 'office',
+      supportedExtensions: ['.pdf']
     }
   ])
 
@@ -74,9 +84,26 @@ export const useFeaturesStore = defineStore('features', () => {
     }
   })
 
+  /**
+   * 根据文件扩展名获取可用的工具列表
+   * @param extension 文件扩展名（包含点，如 .jpg）
+   */
+  const getFeaturesByExtension = computed(() => {
+    return (extension: string) => {
+      const ext = extension.toLowerCase()
+      return features.value.filter(f => {
+        // 接受任意文件的工具始终返回
+        if (f.acceptAnyFile) return true
+        // 检查扩展名匹配
+        return f.supportedExtensions?.includes(ext)
+      })
+    }
+  })
+
   return {
     categories,
     features,
-    getFeaturesByCategory
+    getFeaturesByCategory,
+    getFeaturesByExtension
   }
 })

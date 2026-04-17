@@ -3,12 +3,24 @@ import { join } from 'path'
 import { registerIpcHandlers } from './ipc/index'
 import { registerImageIpcHandlers } from './ipc/image'
 import { registerDocumentIpcHandlers } from './ipc/document'
+import { createFloatingBall, closeFloatingBall } from './floatingBall'
 
 const isDev = !app.isPackaged
+
+// Windows 平台透明窗口需要特殊配置
+if (process.platform === 'win32') {
+  // 禁用硬件加速可以解决透明窗口问题
+  app.disableHardwareAcceleration()
+  app.commandLine.appendSwitch('enable-transparent-visuals')
+  app.commandLine.appendSwitch('disable-gpu')
+}
 
 registerIpcHandlers()
 registerImageIpcHandlers()
 registerDocumentIpcHandlers()
+
+// 是否启用悬浮球（可通过设置关闭）
+let floatingBallEnabled = true
 
 function createWindow(): void {
   // 加载应用图标
@@ -34,6 +46,10 @@ function createWindow(): void {
 
   mainWindow.on('ready-to-show', () => {
     mainWindow.show()
+    // 创建悬浮球
+    if (floatingBallEnabled) {
+      createFloatingBall(mainWindow)
+    }
   })
 
   // 让外部链接在默认浏览器中打开
@@ -59,7 +75,11 @@ function createWindow(): void {
       mainWindow.maximize()
     }
   })
-  ipcMain.on('window:close', () => mainWindow.close())
+  ipcMain.on('window:close', () => {
+    // 关闭主窗口时同时关闭悬浮球
+    closeFloatingBall()
+    mainWindow.close()
+  })
 }
 
 app.whenReady().then(() => {

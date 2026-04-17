@@ -32,5 +32,33 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // 设置
   getSettings: () => ipcRenderer.invoke('settings:get'),
   setSettings: (settings: Record<string, string | boolean>) =>
-    ipcRenderer.invoke('settings:set', settings)
+    ipcRenderer.invoke('settings:set', settings),
+
+  // 悬浮球相关 API
+  floatingGetPosition: () => ipcRenderer.invoke('floating:getPosition'),
+  floatingSetPosition: (x: number, y: number) => ipcRenderer.invoke('floating:setPosition', x, y),
+  floatingSavePosition: (x: number, y: number) => ipcRenderer.invoke('floating:savePosition', x, y),
+  floatingExpand: () => ipcRenderer.invoke('floating:expand'),
+  floatingCollapse: () => ipcRenderer.invoke('floating:collapse'),
+  floatingToggle: () => ipcRenderer.invoke('floating:toggle'),
+  floatingSetIgnoreMouseEvents: (ignore: boolean, options?: { forward: boolean }) =>
+    ipcRenderer.send('floating:setIgnoreMouseEvents', ignore, options),
+  floatingGetScreenBounds: () => ipcRenderer.invoke('floating:getScreenBounds'),
+  getScreenInfo: () => ipcRenderer.invoke('floating:getScreenInfo'),
+
+  // 从悬浮球打开工具并传递文件
+  openToolWithFile: (route: string, filePath: string) =>
+    ipcRenderer.send('floating:openTool', { route, filePath }),
+
+  // 获取拖放文件的完整路径
+  getDroppedFilePath: (fileName: string) =>
+    ipcRenderer.invoke('floating:getDroppedFilePath', fileName),
+
+  // 接收主窗口消息（用于悬浮球）
+  onMainNavigate: (callback: (data: { route: string; filePath: string }) => void) => {
+    ipcRenderer.on('main:navigate', (_, data) => callback(data))
+  },
+  removeMainNavigateListener: () => {
+    ipcRenderer.removeAllListeners('main:navigate')
+  }
 })

@@ -153,6 +153,18 @@ interface ElectronAPI {
   saveFileWithPath: (filePath: string, data: string) => Promise<boolean>
   getSettings: () => Promise<Settings>
   setSettings: (settings: Record<string, string | boolean>) => Promise<void>
+  // 悬浮球相关 API
+  floatingGetPosition: () => Promise<{ x: number; y: number } | null>
+  floatingSetPosition: (x: number, y: number) => Promise<boolean>
+  floatingSavePosition: (x: number, y: number) => Promise<boolean>
+  floatingExpand: () => Promise<boolean>
+  floatingCollapse: () => Promise<boolean>
+  floatingToggle: () => Promise<boolean>
+  floatingSetIgnoreMouseEvents: (ignore: boolean, options?: { forward: boolean }) => void
+  floatingGetScreenBounds: () => Promise<{ width: number; height: number }>
+  openToolWithFile: (route: string, filePath: string) => void
+  onMainNavigate: (callback: (data: { route: string; filePath: string }) => void) => void
+  removeMainNavigateListener: () => void
 }
 
 declare global {
