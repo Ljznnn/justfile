@@ -45,6 +45,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.send('floating:setIgnoreMouseEvents', ignore, options),
   floatingGetScreenBounds: () => ipcRenderer.invoke('floating:getScreenBounds'),
   getScreenInfo: () => ipcRenderer.invoke('floating:getScreenInfo'),
+  
+  // 日志转发到主进程
+  log: (...args: any[]) => ipcRenderer.send('floating:log', args),
 
   // 从悬浮球打开工具并传递文件
   openToolWithFile: (route: string, filePath: string) =>
@@ -60,5 +63,13 @@ contextBridge.exposeInMainWorld('electronAPI', {
   },
   removeMainNavigateListener: () => {
     ipcRenderer.removeAllListeners('main:navigate')
+  },
+
+  // 接收悬浮球日志
+  onFloatingLog: (callback: (args: any[]) => void) => {
+    ipcRenderer.on('floating:logToMain', (_, args) => callback(args))
+  },
+  removeFloatingLogListener: () => {
+    ipcRenderer.removeAllListeners('floating:logToMain')
   }
 })

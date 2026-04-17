@@ -3,6 +3,15 @@ import { ref, computed, onMounted, onUnmounted } from 'vue'
 import ToolSelectionList from './components/ToolSelectionList.vue'
 import logo from '@/assets/logo.png'
 
+// 日志辅助函数 - 转发到主进程控制台
+const log = (...args: any[]) => {
+  console.log(...args)
+  // 同时转发到主进程
+  if (window.electronAPI?.log) {
+    window.electronAPI.log(...args)
+  }
+}
+
 // 状态
 const isExpanded = ref(false)
 const isDragging = ref(false)
@@ -26,7 +35,7 @@ async function handleDragOver(e: DragEvent) {
   if (!e.dataTransfer?.files?.length) return
 
   isExpanded.value = true
-  console.log('[FloatingBall] 拖入文件，调用展开')
+  log('[FloatingBall] 拖入文件，调用展开')
   if (window.electronAPI) {
     await window.electronAPI.floatingExpand()
   }
@@ -62,7 +71,7 @@ async function handleDrop(e: DragEvent) {
   }
 
   isExpanded.value = true
-  console.log('[FloatingBall] 文件放下，调用展开')
+  log('[FloatingBall] 文件放下，调用展开')
   await window.electronAPI.floatingExpand()
 }
 
@@ -83,7 +92,7 @@ function getFileType(filename: string): 'image' | 'pdf' | 'other' {
 async function collapse() {
   isExpanded.value = false
   fileInfo.value = null
-  console.log('[FloatingBall] 调用收缩')
+  log('[FloatingBall] 调用收缩')
   await window.electronAPI.floatingCollapse()
 }
 
@@ -193,7 +202,7 @@ async function handleMouseUp(e: MouseEvent) {
     isDraggingLogic = false
     isDragging.value = false
     
-    console.log('[FloatingBall] 拖动结束，状态检查:', {
+    log('[FloatingBall] 拖动结束，状态检查:', {
       isExpanded: isExpanded.value,
       expandDirection: expandDirection.value
     })
@@ -223,13 +232,13 @@ const typeLabel = computed(() => {
 
 // 挂载时设置
 onMounted(async () => {
-  console.log('[FloatingBall] 悬浮球已挂载')
+  log('[FloatingBall] 悬浮球已挂载')
   document.body.style.background = 'transparent'
   document.documentElement.style.background = 'transparent'
   // 初始状态：设置点击穿透，让鼠标事件可以穿透到后面的窗口
   if (window.electronAPI) {
     window.electronAPI.floatingSetIgnoreMouseEvents(true, { forward: true })
-    console.log('[FloatingBall] electronAPI 可用')
+    log('[FloatingBall] electronAPI 可用')
     
     // 计算展开方向
     await calculateExpandDirection()
@@ -276,8 +285,8 @@ async function calculateExpandDirection() {
   const spaceBottom = (screenY + screenHeight) - windowBottom  // 向下展开的可用空间
   const spaceTop = windowTop - screenY  // 向上展开的可用空间
   
-  console.log(`[FloatingBall] 屏幕空间分析 - 位置：(${position.x}, ${position.y}), 屏幕区域：(${screenX}, ${screenY}) ${screenWidth}x${screenHeight}`)
-  console.log(`[FloatingBall] 右侧空间：${spaceRight}px, 左侧空间：${spaceLeft}px, 下方空间：${spaceBottom}px, 上方空间：${spaceTop}px`)
+  log(`[FloatingBall] 屏幕空间分析 - 位置：(${position.x}, ${position.y}), 屏幕区域：(${screenX}, ${screenY}) ${screenWidth}x${screenHeight}`)
+  log(`[FloatingBall] 右侧空间：${spaceRight}px, 左侧空间：${spaceLeft}px, 下方空间：${spaceBottom}px, 上方空间：${spaceTop}px`)
   
   // 优先尝试右下展开（默认方向）
   const canExpandBottomRight = spaceRight >= expandedWidth && spaceBottom >= expandedHeight
@@ -289,7 +298,7 @@ async function calculateExpandDirection() {
     
     if (canExpandTopLeft) {
       expandDirection.value = 'top-left'
-      console.log('[FloatingBall] 右下空间不足，切换为左上展开')
+      log('[FloatingBall] 右下空间不足，切换为左上展开')
     } else {
       // 如果左上也不行，尝试右上或左下
       const canExpandTopRight = spaceRight >= expandedWidth && spaceTop >= expandedHeight
@@ -297,10 +306,10 @@ async function calculateExpandDirection() {
       
       if (canExpandTopRight) {
         expandDirection.value = 'top-right'
-        console.log('[FloatingBall] 右下和左上都不足，切换为右上展开')
+        log('[FloatingBall] 右下和左上都不足，切换为右上展开')
       } else if (canExpandBottomLeft) {
         expandDirection.value = 'bottom-left'
-        console.log('[FloatingBall] 右下和左上都不足，切换为左下展开')
+        log('[FloatingBall] 右下和左上都不足，切换为左下展开')
       } else {
         // 如果所有方向都不够，选择空间最大的方向
         const totalSpace = {
@@ -314,15 +323,15 @@ async function calculateExpandDirection() {
           .sort(([, a], [, b]) => b - a)[0][0] as string
         
         expandDirection.value = bestDirection as 'top-left' | 'bottom-right' | 'top-right' | 'bottom-left'
-        console.log(`[FloatingBall] 所有方向空间都不足，选择空间最大的方向：${bestDirection}`)
+        log(`[FloatingBall] 所有方向空间都不足，选择空间最大的方向：${bestDirection}`)
       }
     }
   } else {
     expandDirection.value = 'bottom-right'
-    console.log('[FloatingBall] 右下空间充足，使用默认展开方向')
+    log('[FloatingBall] 右下空间充足，使用默认展开方向')
   }
   
-  console.log(`[FloatingBall] 最终展开方向：${expandDirection.value}`)
+  log(`[FloatingBall] 最终展开方向：${expandDirection.value}`)
 }
 
 // 卸载时清理

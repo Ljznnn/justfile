@@ -72,11 +72,11 @@ function savePosition(x: number, y: number): void {
  */
 export function createFloatingBall(mainWin: BrowserWindow): BrowserWindow | null {
   if (floatingWindow) {
-    console.log('[FloatingBall] 悬浮球窗口已存在')
+    console.log('[FloatingBall] Window already exists')
     return floatingWindow
   }
 
-  console.log('[FloatingBall] 正在创建悬浮球窗口...')
+  console.log('[FloatingBall] Creating window...')
 
   mainWindow = mainWin
 
@@ -136,10 +136,10 @@ export function createFloatingBall(mainWin: BrowserWindow): BrowserWindow | null
   // 加载悬浮球页面（独立的 HTML 文件）
   if (isDev) {
     // 开发模式下使用 Vite 开发服务器
-    console.log('[FloatingBall] 加载开发服务器 URL: http://localhost:5173/floating-ball.html')
+    console.log('[FloatingBall] Loading dev server: http://localhost:5173/floating-ball.html')
     floatingWindow.loadURL('http://localhost:5173/floating-ball.html')
-      .then(() => console.log('[FloatingBall] 页面加载成功'))
-      .catch(err => console.error('[FloatingBall] 页面加载失败:', err))
+      .then(() => console.log('[FloatingBall] Page loaded successfully'))
+      .catch(err => console.error('[FloatingBall] Page load failed:', err))
   } else {
     floatingWindow.loadFile(join(__dirname, '../renderer/floating-ball.html'))
   }
@@ -164,6 +164,17 @@ export function createFloatingBall(mainWin: BrowserWindow): BrowserWindow | null
  * 注册悬浮球相关 IPC 处理器
  */
 function registerFloatingIpc(): void {
+  // 接收悬浮球的日志并输出到主进程控制台和主窗口DevTools
+  ipcMain.on('floating:log', (_, args) => {
+    console.log('[FloatingBall]', ...args)
+    // 发送到主窗口的DevTools控制台
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('floating:logToMain', args)
+    }
+  })
+  
+  console.log('[FloatingBall] IPC 处理器已注册')
+  
   // 获取悬浮球位置
   ipcMain.handle('floating:getPosition', () => {
     if (!floatingWindow) return null
@@ -188,7 +199,7 @@ function registerFloatingIpc(): void {
     // 如果既不是收缩也不是展开状态，说明被 CSS 动画干扰了，强制修正
     if (!isCollapsed && !isExpanded) {
       floatingWindow.setSize(FLOATING_CONFIG.windowWidth, FLOATING_CONFIG.windowHeight)
-      console.log(`[FloatingBall] 检测到异常尺寸 ${currentWidth}x${currentHeight}，强制修正为 ${FLOATING_CONFIG.windowWidth}x${FLOATING_CONFIG.windowHeight}`)
+      console.log(`[FloatingBall] Detected abnormal size ${currentWidth}x${currentHeight}, forcing to ${FLOATING_CONFIG.windowWidth}x${FLOATING_CONFIG.windowHeight}`)
     }
 
     // 获取所有显示器的总体范围
@@ -212,7 +223,7 @@ function registerFloatingIpc(): void {
     const clampedY = Math.max(minY - windowHeight + 20, Math.min(y, maxY - 20))
 
     // 调试日志
-    console.log(`[FloatingBall] 拖动：目标 (${x}, ${y}), 限制后 (${clampedX}, ${clampedY}), 窗口 ${windowWidth}x${windowHeight}`)
+    console.log(`[FloatingBall] Drag: target (${x}, ${y}), clamped (${clampedX}, ${clampedY}), window ${windowWidth}x${windowHeight}`)
 
     floatingWindow.setPosition(Math.round(clampedX), Math.round(clampedY))
     return true
@@ -249,9 +260,9 @@ function registerFloatingIpc(): void {
         // 如果尺寸不对，再次强制设置
         if (Math.abs(w - FLOATING_CONFIG.expandedWidth) > 1 || Math.abs(h - FLOATING_CONFIG.expandedHeight) > 1) {
           floatingWindow.setSize(FLOATING_CONFIG.expandedWidth, FLOATING_CONFIG.expandedHeight)
-          console.log(`[FloatingBall] 展开尺寸异常，强制修正为：${FLOATING_CONFIG.expandedWidth}x${FLOATING_CONFIG.expandedHeight}`)
+          console.log(`[FloatingBall] Expand size abnormal, forcing to: ${FLOATING_CONFIG.expandedWidth}x${FLOATING_CONFIG.expandedHeight}`)
         }
-        console.log(`[FloatingBall] 展开后窗口尺寸：${w}x${h}`)
+        console.log(`[FloatingBall] Expanded window size: ${w}x${h}`)
       }
     }, 50)
     
@@ -262,7 +273,7 @@ function registerFloatingIpc(): void {
   ipcMain.handle('floating:collapse', () => {
     if (!floatingWindow) return false
     
-    console.log(`[FloatingBall] 开始收缩，当前尺寸：${floatingWindow.getSize()[0]}x${floatingWindow.getSize()[1]}`)
+    console.log(`[FloatingBall] Starting collapse, current size: ${floatingWindow.getSize()[0]}x${floatingWindow.getSize()[1]}`)
     
     // 立即强制设置为收缩尺寸
     floatingWindow.setSize(FLOATING_CONFIG.windowWidth, FLOATING_CONFIG.windowHeight)
@@ -272,7 +283,7 @@ function registerFloatingIpc(): void {
       if (floatingWindow) {
         floatingWindow.setSize(FLOATING_CONFIG.windowWidth, FLOATING_CONFIG.windowHeight)
         const [w, h] = floatingWindow.getSize()
-        console.log(`[FloatingBall] 收缩后窗口尺寸：${w}x${h} (目标：${FLOATING_CONFIG.windowWidth}x${FLOATING_CONFIG.windowHeight})`)
+        console.log(`[FloatingBall] Collapsed window size: ${w}x${h} (target: ${FLOATING_CONFIG.windowWidth}x${FLOATING_CONFIG.windowHeight})`)
       }
     }, 50)
     
@@ -283,9 +294,9 @@ function registerFloatingIpc(): void {
         // 如果尺寸还是不对，再次强制设置
         if (Math.abs(w - FLOATING_CONFIG.windowWidth) > 1 || Math.abs(h - FLOATING_CONFIG.windowHeight) > 1) {
           floatingWindow.setSize(FLOATING_CONFIG.windowWidth, FLOATING_CONFIG.windowHeight)
-          console.log(`[FloatingBall] 尺寸异常，强制修正为：${FLOATING_CONFIG.windowWidth}x${FLOATING_CONFIG.windowHeight}`)
+          console.log(`[FloatingBall] Size abnormal, forcing to: ${FLOATING_CONFIG.windowWidth}x${FLOATING_CONFIG.windowHeight}`)
         } else {
-          console.log(`[FloatingBall] 收缩完成，尺寸正确：${w}x${h}`)
+          console.log(`[FloatingBall] Collapse complete, size correct: ${w}x${h}`)
         }
       }
     }, 150)

@@ -161,10 +161,14 @@ interface ElectronAPI {
   floatingCollapse: () => Promise<boolean>
   floatingToggle: () => Promise<boolean>
   floatingSetIgnoreMouseEvents: (ignore: boolean, options?: { forward: boolean }) => void
-  floatingGetScreenBounds: () => Promise<{ width: number; height: number }>
+  floatingGetScreenBounds: () => Promise<{ x: number; y: number; width: number; height: number }>
+  getScreenInfo: () => Promise<{ x: number; y: number; width: number; height: number }>
+  log: (...args: any[]) => void
   openToolWithFile: (route: string, filePath: string) => void
   onMainNavigate: (callback: (data: { route: string; filePath: string }) => void) => void
   removeMainNavigateListener: () => void
+  onFloatingLog: (callback: (args: any[]) => void) => void
+  removeFloatingLogListener: () => void
 }
 
 declare global {

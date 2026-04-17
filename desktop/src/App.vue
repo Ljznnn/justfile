@@ -19,13 +19,23 @@ function handleMainNavigate(data: { route: string; filePath: string }) {
   }
 }
 
+/**
+ * 处理悬浮球日志并输出到主窗口DevTools控制台
+ */
+function handleFloatingLog(args: any[]) {
+  console.log('[FloatingBall]', ...args)
+}
+
 onMounted(() => {
   // 监听主窗口导航消息（来自悬浮球）
   window.electronAPI?.onMainNavigate?.(handleMainNavigate)
+  // 监听悬浮球日志
+  window.electronAPI?.onFloatingLog?.(handleFloatingLog)
 })
 
 onUnmounted(() => {
   window.electronAPI?.removeMainNavigateListener?.()
+  window.electronAPI?.removeFloatingLogListener?.()
 })
 </script>
 
