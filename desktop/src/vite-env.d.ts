@@ -145,6 +145,7 @@ interface ElectronAPI {
   windowClose: () => void
   compressImage: (filePath: string, apiKey: string) => Promise<CompressionResult>
   uploadImage: (filePath: string, config: UploadConfig) => Promise<UploadResult>
+  uploadImageFromData: (fileName: string, base64Data: string, config: UploadConfig) => Promise<UploadResult>
   convertPdf: (filePath: string, targetFormat: string, apiKey: string) => Promise<ConvertResult>
   selectFile: (filters: FileFilter[]) => Promise<string[]>
   saveFile: (defaultPath: string) => Promise<string>
@@ -157,7 +158,7 @@ interface ElectronAPI {
   floatingGetPosition: () => Promise<{ x: number; y: number } | null>
   floatingSetPosition: (x: number, y: number) => Promise<boolean>
   floatingSavePosition: (x: number, y: number) => Promise<boolean>
-  floatingExpand: () => Promise<boolean>
+  floatingExpand: () => Promise<{ success: boolean; direction?: 'bottom-right' | 'top-left' | 'top-right' | 'bottom-left' }>
   floatingCollapse: () => Promise<boolean>
   floatingToggle: () => Promise<boolean>
   floatingSetIgnoreMouseEvents: (ignore: boolean, options?: { forward: boolean }) => void
@@ -165,8 +166,11 @@ interface ElectronAPI {
   getScreenInfo: () => Promise<{ x: number; y: number; width: number; height: number }>
   log: (...args: any[]) => void
   openToolWithFile: (route: string, filePath: string) => void
+  openToolWithFileData: (route: string, fileData: { name: string; data: ArrayBuffer; type: string }) => void
   onMainNavigate: (callback: (data: { route: string; filePath: string }) => void) => void
   removeMainNavigateListener: () => void
+  onMainNavigateWithData: (callback: (data: { route: string; fileData: { name: string; data: ArrayBuffer; type: string } }) => void) => void
+  removeMainNavigateWithDataListener: () => void
   onFloatingLog: (callback: (args: any[]) => void) => void
   removeFloatingLogListener: () => void
 }

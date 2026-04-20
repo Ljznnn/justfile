@@ -53,6 +53,15 @@ contextBridge.exposeInMainWorld('electronAPI', {
   openToolWithFile: (route: string, filePath: string) =>
     ipcRenderer.send('floating:openTool', { route, filePath }),
 
+  // 从悬浮球打开工具并传递文件数据（ArrayBuffer）
+  openToolWithFileData: (route: string, fileData: { name: string; data: ArrayBuffer; type: string }) => {
+    console.log('[Preload] openToolWithFileData called, route:', route, 'fileData size:', fileData.data.byteLength)
+    // ArrayBuffer 需要转为普通数组才能通过 IPC
+    const arrayData = Array.from(new Uint8Array(fileData.data))
+    console.log('[Preload] Sending IPC floating:openToolWithData')
+    ipcRenderer.send('floating:openToolWithData', { route, fileData: { name: fileData.name, data: arrayData, type: fileData.type } })
+  },
+
   // 获取拖放文件的完整路径
   getDroppedFilePath: (fileName: string) =>
     ipcRenderer.invoke('floating:getDroppedFilePath', fileName),
@@ -63,6 +72,18 @@ contextBridge.exposeInMainWorld('electronAPI', {
   },
   removeMainNavigateListener: () => {
     ipcRenderer.removeAllListeners('main:navigate')
+  },
+
+  // 接收主窗口传递的文件数据（用于目标页面，ArrayBuffer）
+  onMainNavigateWithData: (callback: (data: { route: string; fileData: { name: string; data: ArrayBuffer; type: string } }) => void) => {
+    ipcRenderer.on('main:navigateWithData', (_, data: { route: string; fileData: { name: string; data: number[]; type: string } }) => {
+      // 将数组转回 ArrayBuffer
+      const arrayBuffer = new Uint8Array(data.fileData.data).buffer
+      callback({ route: data.route, fileData: { name: data.fileData.name, data: arrayBuffer, type: data.fileData.type } })
+    })
+  },
+  removeMainNavigateWithDataListener: () => {
+    ipcRenderer.removeAllListeners('main:navigateWithData')
   },
 
   // 接收悬浮球日志

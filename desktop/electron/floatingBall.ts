@@ -413,6 +413,29 @@ function registerFloatingIpc(): void {
     mainWindow.webContents.send('main:navigate', { route, filePath })
   })
 
+  // 打开工具并传递文件数据（ArrayBuffer）
+  ipcMain.on('floating:openToolWithData', (_, { route, fileData }: { route: string; fileData: { name: string; data: number[]; type: string } }) => {
+    console.log('[FloatingBall] Received floating:openToolWithData, route:', route)
+    console.log('[FloatingBall] mainWindow exists:', !!mainWindow)
+
+    if (!mainWindow) {
+      console.log('[FloatingBall] ERROR: mainWindow is null!')
+      return
+    }
+
+    // 如果主窗口最小化，先恢复
+    if (mainWindow.isMinimized()) {
+      mainWindow.restore()
+    }
+
+    // 激活主窗口
+    mainWindow.focus()
+
+    // 导航到目标页面并传递文件数据
+    console.log('[FloatingBall] Sending main:navigateWithData to main window')
+    mainWindow.webContents.send('main:navigateWithData', { route, fileData })
+  })
+
   // 获取拖放文件的完整路径
   ipcMain.handle('floating:getDroppedFilePath', async () => {
     // 由于安全限制，无法直接获取拖放文件的完整路径

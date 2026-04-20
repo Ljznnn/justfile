@@ -1,12 +1,9 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
-import { useRoute } from 'vue-router'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import imageCompression from 'browser-image-compression'
 import UploadZone from '@/components/common/UploadZone.vue'
 import Icon from '@/components/common/Icon.vue'
-
-const route = useRoute()
 
 interface Result {
   file: string
@@ -158,16 +155,35 @@ const downloadAll = async () => {
 const clearResults = () => results.value = []
 
 /**
- * 处理从悬浮球传来的文件
- * 注意：由于安全限制，无法直接访问拖放文件的完整路径
- * 这里仅做演示，实际使用需要用户重新选择文件
+ * 处理从悬浮球传来的文件数据
+ * 优先从全局变量读取（导航时保存），然后监听 IPC 事件
  */
 onMounted(() => {
-  const fileQuery = route.query.file as string
-  if (fileQuery) {
-    // 显示提示信息
-    ElMessage.info('请从本地选择文件进行压缩')
+  // 从全局变量读取悬浮球传递的文件数据
+  const globalData = (window as any).__floatingFileData
+  if (globalData?.value?.route === '/image/compress' && globalData.value.fileData) {
+    const fileData = globalData.value.fileData
+    const file = new File([fileData.data], fileData.name, {
+      type: fileData.type
+    })
+    handleFileSelect([file])
+    // 清空全局数据
+    globalData.value = null
   }
+
+  // 同时监听 IPC 事件（如果页面已经打开）
+  window.electronAPI?.onMainNavigateWithData?.((data) => {
+    if (data.route === '/image/compress') {
+      const file = new File([data.fileData.data], data.fileData.name, {
+        type: data.fileData.type
+      })
+      handleFileSelect([file])
+    }
+  })
+})
+
+onUnmounted(() => {
+  window.electronAPI?.removeMainNavigateWithDataListener?.()
 })
 </script>
 

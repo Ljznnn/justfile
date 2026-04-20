@@ -16,6 +16,8 @@ const log = (...args: any[]) => {
 const isExpanded = ref(false)
 const isDragging = ref(false)
 const fileInfo = ref<{ name: string; size: number; extension: string; type: 'image' | 'pdf' | 'other' } | null>(null)
+const fileData = ref<ArrayBuffer | null>(null)  // 存储文件的 ArrayBuffer 数据
+const fileMimeType = ref('')  // 存储 MIME 类型
 
 // 拖动相关
 let dragStartX = 0
@@ -61,11 +63,21 @@ async function handleDrop(e: DragEvent) {
 
   const file = e.dataTransfer.files[0]
 
+  // 存储文件信息
   fileInfo.value = {
     name: file.name,
     size: file.size,
     extension: '.' + file.name.split('.').pop()?.toLowerCase() || '',
     type: getFileType(file.name)
+  }
+
+  // 读取文件为 ArrayBuffer
+  try {
+    fileData.value = await file.arrayBuffer()
+    fileMimeType.value = file.type
+    log('[FloatingBall] 文件已加载到内存:', file.name, file.size, 'bytes')
+  } catch (err) {
+    console.error('[FloatingBall] 文件读取失败:', err)
   }
 
   isExpanded.value = true
@@ -90,6 +102,8 @@ function getFileType(filename: string): 'image' | 'pdf' | 'other' {
 async function collapse() {
   isExpanded.value = false
   fileInfo.value = null
+  fileData.value = null
+  fileMimeType.value = ''
   log('[FloatingBall] 调用收缩')
   await window.electronAPI.floatingCollapse()
 }
@@ -98,17 +112,28 @@ async function collapse() {
  * 打开工具
  */
 function handleOpenTool(route: string) {
-  if (!fileInfo.value) return
-  window.electronAPI.openToolWithFile(route, fileInfo.value.name)
-  collapse()
-}
+  log('[FloatingBall] handleOpenTool called, route:', route)
+  log('[FloatingBall] fileInfo:', fileInfo.value)
+  log('[FloatingBall] fileData:', fileData.value ? 'exists' : 'null')
 
-/**
- * 鼠标进入
- */
-function handleMouseEnter() {
-  // 鼠标进入时，禁用点击穿透，让窗口可以接收鼠标事件
-  window.electronAPI.floatingSetIgnoreMouseEvents(false)
+  if (!fileInfo.value) {
+    log('[FloatingBall] ERROR: fileInfo is null')
+    return
+  }
+
+  // 如果有文件数据，传递 ArrayBuffer
+  if (fileData.value) {
+    log('[FloatingBall] Calling openToolWithFileData')
+    window.electronAPI.openToolWithFileData(route, {
+      name: fileInfo.value.name,
+      data: fileData.value,
+      type: fileMimeType.value
+    })
+  } else {
+    log('[FloatingBall] Calling openToolWithFile')
+    window.electronAPI.openToolWithFile(route, fileInfo.value.name)
+  }
+  collapse()
 }
 
 /**
@@ -119,6 +144,14 @@ function handleMouseLeave() {
   if (!isExpanded.value && !isDragging.value) {
     window.electronAPI.floatingSetIgnoreMouseEvents(true, { forward: true })
   }
+}
+
+/**
+ * 鼠标进入
+ */
+function handleMouseEnter() {
+  // 鼠标进入时，禁用点击穿透，让窗口可以接收鼠标事件
+  window.electronAPI.floatingSetIgnoreMouseEvents(false)
 }
 
 /**
@@ -226,9 +259,10 @@ onMounted(async () => {
   log('[FloatingBall] 悬浮球已挂载')
   document.body.style.background = 'transparent'
   document.documentElement.style.background = 'transparent'
-  // 初始状态：设置点击穿透，让鼠标事件可以穿透到后面的窗口
+  // 初始状态：不设置点击穿透，让悬浮球可以接收拖放事件
+  // 点击穿透只在收缩状态下且鼠标离开时设置
   if (window.electronAPI) {
-    window.electronAPI.floatingSetIgnoreMouseEvents(true, { forward: true })
+    // 初始不穿透，等待鼠标离开后再设置
     log('[FloatingBall] electronAPI 可用')
   } else {
     console.warn('[FloatingBall] electronAPI 不可用')
