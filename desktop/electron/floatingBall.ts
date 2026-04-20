@@ -11,6 +11,7 @@ const isDev = !app.isPackaged
 
 let floatingWindow: BrowserWindow | null = null
 let mainWindow: BrowserWindow | null = null
+let collapsedPosition: { x: number; y: number } | null = null  // 记录收缩时的位置
 
 /**
  * 悬浮球配置
@@ -246,61 +247,147 @@ function registerFloatingIpc(): void {
     return true
   })
 
-  // 展开悬浮球
+  // 展开悬浮球（智能计算位置）
   ipcMain.handle('floating:expand', () => {
-    if (!floatingWindow) return false
-    
-    // 立即设置为展开尺寸
-    floatingWindow.setSize(FLOATING_CONFIG.expandedWidth, FLOATING_CONFIG.expandedHeight)
-    
-    // 延迟确认，确保尺寸正确
-    setTimeout(() => {
-      if (floatingWindow) {
-        const [w, h] = floatingWindow.getSize()
-        // 如果尺寸不对，再次强制设置
-        if (Math.abs(w - FLOATING_CONFIG.expandedWidth) > 1 || Math.abs(h - FLOATING_CONFIG.expandedHeight) > 1) {
-          floatingWindow.setSize(FLOATING_CONFIG.expandedWidth, FLOATING_CONFIG.expandedHeight)
-          console.log(`[FloatingBall] Expand size abnormal, forcing to: ${FLOATING_CONFIG.expandedWidth}x${FLOATING_CONFIG.expandedHeight}`)
-        }
-        console.log(`[FloatingBall] Expanded window size: ${w}x${h}`)
+    if (!floatingWindow) return { success: false }
+
+    const [currentX, currentY] = floatingWindow.getPosition()
+    const display = screen.getDisplayNearestPoint({ x: currentX, y: currentY })
+    const { x: screenX, y: screenY, width: screenWidth, height: screenHeight } = display.workArea
+
+    // 保存收缩时的位置，用于收缩时恢复
+    collapsedPosition = { x: currentX, y: currentY }
+
+    // 展开面板尺寸
+    const expandedWidth = FLOATING_CONFIG.expandedWidth
+    const expandedHeight = FLOATING_CONFIG.expandedHeight
+
+    // 圆形按钮尺寸
+    const ballSize = FLOATING_CONFIG.ballSize
+
+    // 计算各方向可用空间
+    const spaceRight = (screenX + screenWidth) - (currentX + ballSize)
+    const spaceLeft = currentX - screenX
+    const spaceBottom = (screenY + screenHeight) - (currentY + ballSize)
+    const spaceTop = currentY - screenY
+
+    // 计算展开后的窗口位置
+    let newX = currentX
+    let newY = currentY
+    type ExpandDirection = 'bottom-right' | 'top-left' | 'top-right' | 'bottom-left'
+    let direction: ExpandDirection = 'bottom-right'
+
+    // 优先右下展开
+    if (spaceRight >= expandedWidth - ballSize && spaceBottom >= expandedHeight - ballSize) {
+      // 右下展开：窗口位置不变
+      newX = currentX
+      newY = currentY
+      direction = 'bottom-right'
+    }
+    // 左上展开
+    else if (spaceLeft >= expandedWidth - ballSize && spaceTop >= expandedHeight - ballSize) {
+      // 左上展开：窗口向左上方扩展
+      newX = currentX + ballSize - expandedWidth
+      newY = currentY + ballSize - expandedHeight
+      direction = 'top-left'
+    }
+    // 右上展开
+    else if (spaceRight >= expandedWidth - ballSize && spaceTop >= expandedHeight - ballSize) {
+      // 右上展开：窗口向右上方扩展
+      newX = currentX
+      newY = currentY + ballSize - expandedHeight
+      direction = 'top-right'
+    }
+    // 左下展开
+    else if (spaceLeft >= expandedWidth - ballSize && spaceBottom >= expandedHeight - ballSize) {
+      // 左下展开：窗口向左下方扩展
+      newX = currentX + ballSize - expandedWidth
+      newY = currentY
+      direction = 'bottom-left'
+    }
+    // 所有方向都不够，选择空间最大的方向
+    else {
+      const totalSpace: Record<ExpandDirection, number> = {
+        'bottom-right': spaceRight + spaceBottom,
+        'top-left': spaceLeft + spaceTop,
+        'top-right': spaceRight + spaceTop,
+        'bottom-left': spaceLeft + spaceBottom
       }
-    }, 50)
-    
-    return true
+
+      const bestDirection = Object.entries(totalSpace)
+        .sort(([, a], [, b]) => b - a)[0][0] as ExpandDirection
+      direction = bestDirection
+
+      switch (direction) {
+        case 'top-left':
+          newX = Math.max(screenX, currentX + ballSize - expandedWidth)
+          newY = Math.max(screenY, currentY + ballSize - expandedHeight)
+          break
+        case 'top-right':
+          newX = Math.min(screenX + screenWidth - expandedWidth, currentX)
+          newY = Math.max(screenY, currentY + ballSize - expandedHeight)
+          break
+        case 'bottom-left':
+          newX = Math.max(screenX, currentX + ballSize - expandedWidth)
+          newY = Math.min(screenY + screenHeight - expandedHeight, currentY)
+          break
+        default: // bottom-right
+          newX = Math.min(screenX + screenWidth - expandedWidth, currentX)
+          newY = Math.min(screenY + screenHeight - expandedHeight, currentY)
+          break
+      }
+    }
+
+    console.log(`[FloatingBall] Expand: direction=${direction}, pos=(${currentX},${currentY})->(${newX},${newY})`)
+
+    // 使用 setBounds 同时设置位置和尺寸，确保窗口完整显示
+    floatingWindow.setBounds({
+      x: Math.round(newX),
+      y: Math.round(newY),
+      width: expandedWidth,
+      height: expandedHeight
+    })
+
+    // 返回展开方向，前端用于调整内容布局
+    return { success: true, direction }
   })
 
   // 收缩悬浮球
   ipcMain.handle('floating:collapse', () => {
     if (!floatingWindow) return false
-    
+
     console.log(`[FloatingBall] Starting collapse, current size: ${floatingWindow.getSize()[0]}x${floatingWindow.getSize()[1]}`)
-    
-    // 立即强制设置为收缩尺寸
-    floatingWindow.setSize(FLOATING_CONFIG.windowWidth, FLOATING_CONFIG.windowHeight)
-    
-    // 延迟再次确认，防止 CSS 动画干扰
-    setTimeout(() => {
-      if (floatingWindow) {
-        floatingWindow.setSize(FLOATING_CONFIG.windowWidth, FLOATING_CONFIG.windowHeight)
-        const [w, h] = floatingWindow.getSize()
-        console.log(`[FloatingBall] Collapsed window size: ${w}x${h} (target: ${FLOATING_CONFIG.windowWidth}x${FLOATING_CONFIG.windowHeight})`)
-      }
-    }, 50)
-    
-    // 再次确认，确保尺寸正确
-    setTimeout(() => {
-      if (floatingWindow) {
-        const [w, h] = floatingWindow.getSize()
-        // 如果尺寸还是不对，再次强制设置
-        if (Math.abs(w - FLOATING_CONFIG.windowWidth) > 1 || Math.abs(h - FLOATING_CONFIG.windowHeight) > 1) {
-          floatingWindow.setSize(FLOATING_CONFIG.windowWidth, FLOATING_CONFIG.windowHeight)
-          console.log(`[FloatingBall] Size abnormal, forcing to: ${FLOATING_CONFIG.windowWidth}x${FLOATING_CONFIG.windowHeight}`)
-        } else {
-          console.log(`[FloatingBall] Collapse complete, size correct: ${w}x${h}`)
-        }
-      }
-    }, 150)
-    
+
+    // 恢复到收缩前的位置，如果没有记录则使用当前位置
+    let targetX: number, targetY: number
+
+    if (collapsedPosition) {
+      targetX = collapsedPosition.x
+      targetY = collapsedPosition.y
+      console.log(`[FloatingBall] Restoring to saved position: (${targetX},${targetY})`)
+    } else {
+      // 如果没有保存的位置，使用当前位置并进行边界检测
+      const [x, y] = floatingWindow.getPosition()
+      const display = screen.getDisplayNearestPoint({ x, y })
+      const { x: screenX, y: screenY, width: screenWidth, height: screenHeight } = display.workArea
+      const ballSize = FLOATING_CONFIG.ballSize
+
+      targetX = Math.max(screenX, Math.min(x, screenX + screenWidth - ballSize))
+      targetY = Math.max(screenY, Math.min(y, screenY + screenHeight - ballSize))
+      console.log(`[FloatingBall] No saved position, using boundary-adjusted: (${targetX},${targetY})`)
+    }
+
+    // 使用 setBounds 同时设置位置和尺寸
+    floatingWindow.setBounds({
+      x: Math.round(targetX),
+      y: Math.round(targetY),
+      width: FLOATING_CONFIG.windowWidth,
+      height: FLOATING_CONFIG.windowHeight
+    })
+
+    // 清除保存的位置
+    collapsedPosition = null
+
     return true
   })
 

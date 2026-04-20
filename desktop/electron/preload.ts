@@ -38,7 +38,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   floatingGetPosition: () => ipcRenderer.invoke('floating:getPosition'),
   floatingSetPosition: (x: number, y: number) => ipcRenderer.invoke('floating:setPosition', x, y),
   floatingSavePosition: (x: number, y: number) => ipcRenderer.invoke('floating:savePosition', x, y),
-  floatingExpand: () => ipcRenderer.invoke('floating:expand'),
+  floatingExpand: () => ipcRenderer.invoke('floating:expand') as Promise<{ success: boolean; direction?: 'bottom-right' | 'top-left' | 'top-right' | 'bottom-left' }>,
   floatingCollapse: () => ipcRenderer.invoke('floating:collapse'),
   floatingToggle: () => ipcRenderer.invoke('floating:toggle'),
   floatingSetIgnoreMouseEvents: (ignore: boolean, options?: { forward: boolean }) =>

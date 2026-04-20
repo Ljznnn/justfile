@@ -158,11 +158,9 @@ function handleSelect(route: string) {
 .tool-item:hover {
   background: rgba(255, 255, 255, 0.8);
   border-color: rgba(102, 126, 234, 0.2);
-  transform: translateX(2px);
 }
 
 .tool-item:active {
-  transform: translateX(4px);
   background: rgba(102, 126, 234, 0.08);
 }
 
