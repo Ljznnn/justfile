@@ -1,9 +1,12 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
+import { useRoute } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import imageCompression from 'browser-image-compression'
 import UploadZone from '@/components/common/UploadZone.vue'
 import Icon from '@/components/common/Icon.vue'
+
+const route = useRoute()
 
 interface Result {
   file: string
@@ -47,23 +50,26 @@ const blobToBase64 = async (blob: Blob): Promise<string> => {
 }
 
 const handleFileSelect = async (files: File[]) => {
-  results.value = files.map(f => ({
+  // 追加新文件到结果列表，而不是替换
+  const startIndex = results.value.length
+  results.value.push(...files.map(f => ({
     file: f.name,
     originalSize: f.size,
     compressedSize: 0,
     savedPercent: 0,
     blob: null,
-    status: 'processing'
-  }))
+    status: 'processing' as const
+  })))
   isProcessing.value = true
 
   for (let i = 0; i < files.length; i++) {
     const file = files[i]
+    const resultIndex = startIndex + i
     try {
       const options = {
         maxSizeMB: maxSizeMB.value,
         maxWidthOrHeight: maxWidthOrHeight.value,
-        useWebWorker: true,
+        useWebWorker: false,
         initialQuality: quality.value,
         alwaysKeepResolution: true
       }
@@ -74,16 +80,16 @@ const handleFileSelect = async (files: File[]) => {
       const savedBytes = file.size - finalBlob.size
       const savedPercent = Math.round((savedBytes / file.size) * 100)
 
-      results.value[i] = {
-        ...results.value[i],
+      results.value[resultIndex] = {
+        ...results.value[resultIndex],
         compressedSize: finalBlob.size,
         savedPercent,
         blob: finalBlob,
         status: 'success'
       }
     } catch (e: any) {
-      results.value[i] = {
-        ...results.value[i],
+      results.value[resultIndex] = {
+        ...results.value[resultIndex],
         status: 'error',
         error: e.message || '压缩失败'
       }
@@ -155,35 +161,43 @@ const downloadAll = async () => {
 const clearResults = () => results.value = []
 
 /**
- * 处理从悬浮球传来的文件数据
- * 优先从全局变量读取（导航时保存），然后监听 IPC 事件
+ * 处理从悬浮球传来的文件
+ * 从全局变量读取文件路径，然后读取文件
  */
-onMounted(() => {
-  // 从全局变量读取悬浮球传递的文件数据
-  const globalData = (window as any).__floatingFileData
-  if (globalData?.value?.route === '/image/compress' && globalData.value.fileData) {
-    const fileData = globalData.value.fileData
-    const file = new File([fileData.data], fileData.name, {
-      type: fileData.type
-    })
-    handleFileSelect([file])
-    // 清空全局数据
-    globalData.value = null
-  }
+async function handleFloatingFile() {
+  const globalPath = (window as any).__floatingFilePath
+  if (globalPath?.value) {
+    const filePath = globalPath.value
+    globalPath.value = null
 
-  // 同时监听 IPC 事件（如果页面已经打开）
-  window.electronAPI?.onMainNavigateWithData?.((data) => {
-    if (data.route === '/image/compress') {
-      const file = new File([data.fileData.data], data.fileData.name, {
-        type: data.fileData.type
-      })
-      handleFileSelect([file])
+    try {
+      const uint8Array = await window.electronAPI.readFileAsArrayBuffer(filePath)
+      if (uint8Array) {
+        const ext = filePath.split('.').pop()?.toLowerCase() || 'png'
+        const mimeType = ext === 'jpg' ? 'image/jpeg' : `image/${ext}`
+
+        const blob = new Blob([uint8Array], { type: mimeType })
+        const fileName = filePath.split(/[/\\]/).pop() || 'image.' + ext
+        const file = new File([blob], fileName, { type: mimeType })
+        handleFileSelect([file])
+      }
+    } catch (e) {
+      console.error('Failed to load file from path:', e)
     }
-  })
+  }
+}
+
+onMounted(() => {
+  handleFloatingFile()
+})
+
+// 监听文件路径变化（从悬浮球）
+watch(() => (window as any).__filePathChanged?.value, () => {
+  handleFloatingFile()
 })
 
 onUnmounted(() => {
-  window.electronAPI?.removeMainNavigateWithDataListener?.()
+  // 清理
 })
 </script>
 

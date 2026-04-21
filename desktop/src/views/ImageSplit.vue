@@ -1,9 +1,12 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
+import { useRoute } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import UploadZone from '@/components/common/UploadZone.vue'
 import Icon from '@/components/common/Icon.vue'
 import { splitImage, downloadFile } from '@/utils/imageProcessor'
+
+const route = useRoute()
 
 interface SplitPiece {
   blob: Blob
@@ -173,35 +176,39 @@ const presets = [
 ]
 
 /**
- * 处理从悬浮球传来的文件数据
- * 优先从全局变量读取（导航时保存），然后监听 IPC 事件
+ * 处理从悬浮球传来的文件
+ * 从全局变量读取文件路径，然后读取文件
  */
-onMounted(() => {
-  // 从全局变量读取悬浮球传递的文件数据
-  const globalData = (window as any).__floatingFileData
-  if (globalData?.value?.route === '/image/split' && globalData.value.fileData) {
-    const fileData = globalData.value.fileData
-    const file = new File([fileData.data], fileData.name, {
-      type: fileData.type
-    })
-    handleFileSelect([file])
-    // 清空全局数据
-    globalData.value = null
-  }
+async function handleFloatingFile() {
+  const globalPath = (window as any).__floatingFilePath
+  if (globalPath?.value) {
+    const filePath = globalPath.value
+    globalPath.value = null
 
-  // 同时监听 IPC 事件（如果页面已经打开）
-  window.electronAPI?.onMainNavigateWithData?.((data) => {
-    if (data.route === '/image/split') {
-      const file = new File([data.fileData.data], data.fileData.name, {
-        type: data.fileData.type
-      })
-      handleFileSelect([file])
+    try {
+      const uint8Array = await window.electronAPI.readFileAsArrayBuffer(filePath)
+      if (uint8Array) {
+        const ext = filePath.split('.').pop()?.toLowerCase() || 'png'
+        const mimeType = ext === 'jpg' ? 'image/jpeg' : `image/${ext}`
+
+        const blob = new Blob([uint8Array], { type: mimeType })
+        const fileName = filePath.split(/[/\\]/).pop() || 'image.' + ext
+        const file = new File([blob], fileName, { type: mimeType })
+        handleFileSelect([file])
+      }
+    } catch (e) {
+      console.error('Failed to load file from path:', e)
     }
-  })
+  }
+}
+
+onMounted(() => {
+  handleFloatingFile()
 })
 
-onUnmounted(() => {
-  window.electronAPI?.removeMainNavigateWithDataListener?.()
+// 监听文件路径变化（从悬浮球）
+watch(() => (window as any).__filePathChanged?.value, () => {
+  handleFloatingFile()
 })
 </script>
 

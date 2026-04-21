@@ -399,7 +399,13 @@ function registerFloatingIpc(): void {
 
   // 打开工具并传递文件
   ipcMain.on('floating:openTool', (_, { route, filePath }: { route: string; filePath: string }) => {
-    if (!mainWindow) return
+    console.log('[FloatingBall] Received floating:openTool, route:', route, 'filePath:', filePath)
+    console.log('[FloatingBall] mainWindow:', mainWindow ? 'exists' : 'null')
+    
+    if (!mainWindow) {
+      console.log('[FloatingBall] ERROR: mainWindow is null!')
+      return
+    }
 
     // 如果主窗口最小化，先恢复
     if (mainWindow.isMinimized()) {
@@ -410,6 +416,7 @@ function registerFloatingIpc(): void {
     mainWindow.focus()
 
     // 导航到目标页面并传递文件路径
+    console.log('[FloatingBall] Sending main:navigate to renderer')
     mainWindow.webContents.send('main:navigate', { route, filePath })
   })
 

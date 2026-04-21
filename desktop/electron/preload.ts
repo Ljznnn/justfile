@@ -20,6 +20,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // 文件操作
   selectFile: (filters: { name: string; extensions: string[] }[]) =>
     ipcRenderer.invoke('file:select', filters),
+  readFileAsArrayBuffer: (filePath: string) =>
+    ipcRenderer.invoke('file:readAsArrayBuffer', filePath),
   saveFile: (defaultPath: string) =>
     ipcRenderer.invoke('file:save', defaultPath),
   selectFolder: () =>

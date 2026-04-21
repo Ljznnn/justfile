@@ -15,9 +15,7 @@ const log = (...args: any[]) => {
 // 状态
 const isExpanded = ref(false)
 const isDragging = ref(false)
-const fileInfo = ref<{ name: string; size: number; extension: string; type: 'image' | 'pdf' | 'other' } | null>(null)
-const fileData = ref<ArrayBuffer | null>(null)  // 存储文件的 ArrayBuffer 数据
-const fileMimeType = ref('')  // 存储 MIME 类型
+const fileInfo = ref<{ name: string; size: number; extension: string; type: 'image' | 'pdf' | 'other'; path: string } | null>(null)
 
 // 拖动相关
 let dragStartX = 0
@@ -62,23 +60,19 @@ async function handleDrop(e: DragEvent) {
   if (!e.dataTransfer?.files?.length) return
 
   const file = e.dataTransfer.files[0]
+  // 获取文件本地路径（Electron 特有属性）
+  const filePath = (file as any).path || ''
 
   // 存储文件信息
   fileInfo.value = {
     name: file.name,
     size: file.size,
     extension: '.' + file.name.split('.').pop()?.toLowerCase() || '',
-    type: getFileType(file.name)
+    type: getFileType(file.name),
+    path: filePath
   }
 
-  // 读取文件为 ArrayBuffer
-  try {
-    fileData.value = await file.arrayBuffer()
-    fileMimeType.value = file.type
-    log('[FloatingBall] 文件已加载到内存:', file.name, file.size, 'bytes')
-  } catch (err) {
-    console.error('[FloatingBall] 文件读取失败:', err)
-  }
+  log('[FloatingBall] 文件已获取:', file.name, file.size, 'bytes', 'Path:', filePath)
 
   isExpanded.value = true
   log('[FloatingBall] 文件放下，调用展开')
@@ -102,8 +96,6 @@ function getFileType(filename: string): 'image' | 'pdf' | 'other' {
 async function collapse() {
   isExpanded.value = false
   fileInfo.value = null
-  fileData.value = null
-  fileMimeType.value = ''
   log('[FloatingBall] 调用收缩')
   await window.electronAPI.floatingCollapse()
 }
@@ -112,27 +104,19 @@ async function collapse() {
  * 打开工具
  */
 function handleOpenTool(route: string) {
-  log('[FloatingBall] handleOpenTool called, route:', route)
-  log('[FloatingBall] fileInfo:', fileInfo.value)
-  log('[FloatingBall] fileData:', fileData.value ? 'exists' : 'null')
+  console.log('[FloatingBall] handleOpenTool called, route:', route)
+  console.log('[FloatingBall] fileInfo:', fileInfo.value)
+  console.log('[FloatingBall] electronAPI:', window.electronAPI ? 'exists' : 'null')
+  console.log('[FloatingBall] openToolWithFile:', window.electronAPI?.openToolWithFile ? 'exists' : 'null')
 
   if (!fileInfo.value) {
-    log('[FloatingBall] ERROR: fileInfo is null')
+    console.log('[FloatingBall] ERROR: fileInfo is null')
     return
   }
 
-  // 如果有文件数据，传递 ArrayBuffer
-  if (fileData.value) {
-    log('[FloatingBall] Calling openToolWithFileData')
-    window.electronAPI.openToolWithFileData(route, {
-      name: fileInfo.value.name,
-      data: fileData.value,
-      type: fileMimeType.value
-    })
-  } else {
-    log('[FloatingBall] Calling openToolWithFile')
-    window.electronAPI.openToolWithFile(route, fileInfo.value.name)
-  }
+  // 传递文件路径给工具页面
+  console.log('[FloatingBall] Calling openToolWithFile, path:', fileInfo.value.path)
+  window.electronAPI.openToolWithFile(route, fileInfo.value.path)
   collapse()
 }
 

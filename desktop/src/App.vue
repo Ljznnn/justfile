@@ -6,39 +6,43 @@ import TitleBar from '@/components/Layout/TitleBar.vue'
 
 const router = useRouter()
 
-// 全局文件数据存储（用于悬浮球传递文件）
-const globalFileData = ref<{ route: string; fileData: { name: string; data: ArrayBuffer; type: string } } | null>(null)
+// 全局文件路径存储（用于悬浮球传递文件）
+const globalFilePath = ref<string | null>(null)
 
 // 导出给其他组件使用
-;(window as any).__floatingFileData = globalFileData
+;(window as any).__floatingFilePath = globalFilePath
+
+// 文件路径变化事件
+const filePathChanged = ref(0)
+;(window as any).__filePathChanged = filePathChanged
+
+/**
+ * 获取并清除全局文件路径（供工具页面调用）
+ */
+function getAndClearFilePath(): string | null {
+  const path = globalFilePath.value
+  globalFilePath.value = null
+  return path
+}
+
+;(window as any).__getAndClearFilePath = getAndClearFilePath
 
 /**
  * 处理从悬浮球传来的导航消息
  */
 function handleMainNavigate(data: { route: string; filePath: string }) {
+  console.log('[App] handleMainNavigate called, route:', data.route, 'filePath:', data.filePath)
   if (data.route) {
-    // 导航到目标页面，通过 query 参数传递文件路径
+    // 保存文件路径到全局变量
+    globalFilePath.value = data.filePath || null
+    // 递增变化计数，通知监听器
+    filePathChanged.value++
+    // 导航到目标页面
+    console.log('[App] Navigating to:', data.route)
     router.push({
       path: data.route,
       query: data.filePath ? { file: data.filePath } : undefined
     })
-  }
-}
-
-/**
- * 处理从悬浮球传来的导航消息（带文件数据）
- * 先执行路由导航，目标页面会监听并处理文件数据
- */
-function handleMainNavigateWithData(data: { route: string; fileData: { name: string; data: ArrayBuffer; type: string } }) {
-  console.log('[App] handleMainNavigateWithData called, route:', data.route)
-  console.log('[App] fileData:', data.fileData ? { name: data.fileData.name, type: data.fileData.type, dataSize: data.fileData.data.byteLength } : 'null')
-
-  if (data.route) {
-    // 先保存文件数据到全局变量
-    globalFileData.value = data
-    // 导航到目标页面，目标页面的 onMounted 会处理文件数据
-    console.log('[App] Navigating to:', data.route)
-    router.push(data.route)
   }
 }
 
@@ -52,15 +56,12 @@ function handleFloatingLog(args: any[]) {
 onMounted(() => {
   // 监听主窗口导航消息（来自悬浮球）
   window.electronAPI?.onMainNavigate?.(handleMainNavigate)
-  // 监听主窗口导航消息（带文件数据，来自悬浮球）
-  window.electronAPI?.onMainNavigateWithData?.(handleMainNavigateWithData)
   // 监听悬浮球日志
   window.electronAPI?.onFloatingLog?.(handleFloatingLog)
 })
 
 onUnmounted(() => {
   window.electronAPI?.removeMainNavigateListener?.()
-  window.electronAPI?.removeMainNavigateWithDataListener?.()
   window.electronAPI?.removeFloatingLogListener?.()
 })
 </script>

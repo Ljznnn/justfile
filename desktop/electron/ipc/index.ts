@@ -9,6 +9,21 @@ function getSettingsPath(): string {
 }
 
 export function registerIpcHandlers() {
+  // 读取文件为 ArrayBuffer（用于悬浮球传递文件，效率更高）
+  ipcMain.handle('file:readAsArrayBuffer', async (_, filePath: string) => {
+    try {
+      if (!fs.existsSync(filePath)) {
+        return null
+      }
+      const buffer = fs.readFileSync(filePath)
+      // Buffer 在 IPC 传输时会自动转为 Uint8Array
+      return buffer
+    } catch (error) {
+      console.error('Failed to read file:', error)
+      return null
+    }
+  })
+
   ipcMain.handle('file:select', async (_, filters) => {
     const result = await dialog.showOpenDialog({
       properties: ['openFile'],

@@ -152,6 +152,7 @@ interface ElectronAPI {
   selectFolder: () => Promise<string | null>
   saveFilesToFolder: (folderPath: string, files: { name: string; data: string }[]) => Promise<boolean>
   saveFileWithPath: (filePath: string, data: string) => Promise<boolean>
+  readFileAsArrayBuffer: (filePath: string) => Promise<any>
   getSettings: () => Promise<Settings>
   setSettings: (settings: Record<string, string | boolean>) => Promise<void>
   // 悬浮球相关 API

@@ -1,8 +1,11 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, onMounted, watch } from 'vue'
+import { useRoute } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { useSettingsStore } from '@/stores/settings'
 import Icon from '@/components/common/Icon.vue'
+
+const route = useRoute()
 
 interface Result {
   file: string
@@ -16,6 +19,25 @@ const results = ref<Result[]>([])
 const isProcessing = ref(false)
 const showConfig = ref(false)
 const isDragging = ref(false)
+
+// 从悬浮球接收文件路径
+async function handleFloatingFile() {
+  const globalPath = (window as any).__floatingFilePath
+  if (globalPath?.value) {
+    const filePath = globalPath.value
+    globalPath.value = null
+    await uploadFiles([filePath])
+  }
+}
+
+onMounted(() => {
+  handleFloatingFile()
+})
+
+// 监听文件路径变化（从悬浮球）
+watch(() => (window as any).__filePathChanged?.value, () => {
+  handleFloatingFile()
+})
 
 // 点击上传区域
 const handleUploadClick = async () => {

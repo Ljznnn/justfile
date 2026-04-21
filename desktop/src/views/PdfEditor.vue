@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { ref, shallowRef, computed, onMounted, onUnmounted } from 'vue'
+import { ref, shallowRef, computed, onMounted, onUnmounted, watch } from 'vue'
+import { useRoute } from 'vue-router'
 import { PDFDocument, degrees } from 'pdf-lib'
 import * as pdfjsLib from 'pdfjs-dist'
 import { ElMessage } from 'element-plus'
@@ -29,6 +30,8 @@ const dragOverIndex = ref<number | null>(null)
 
 const selectedPages = computed(() => pages.value.filter(p => p.selected))
 const selectedCount = computed(() => selectedPages.value.length)
+
+const route = useRoute()
 
 // 处理文件上传
 const handleFileSelect = async (files: File[]) => {
@@ -277,35 +280,36 @@ const reset = () => {
 }
 
 /**
- * 处理从悬浮球传来的文件数据
- * 优先从全局变量读取（导航时保存），然后监听 IPC 事件
+ * 处理从悬浮球传来的文件
+ * 从全局变量读取文件路径，然后读取文件
  */
-onMounted(() => {
-  // 从全局变量读取悬浮球传递的文件数据
-  const globalData = (window as any).__floatingFileData
-  if (globalData?.value?.route === '/pdf/editor' && globalData.value.fileData) {
-    const fileData = globalData.value.fileData
-    const file = new File([fileData.data], fileData.name, {
-      type: fileData.type
-    })
-    handleFileSelect([file])
-    // 清空全局数据
-    globalData.value = null
-  }
+async function handleFloatingFile() {
+  const globalPath = (window as any).__floatingFilePath
+  if (globalPath?.value) {
+    const filePath = globalPath.value
+    globalPath.value = null
 
-  // 同时监听 IPC 事件（如果页面已经打开）
-  window.electronAPI?.onMainNavigateWithData?.((data) => {
-    if (data.route === '/pdf/editor') {
-      const file = new File([data.fileData.data], data.fileData.name, {
-        type: data.fileData.type
-      })
-      handleFileSelect([file])
+    try {
+      const uint8Array = await window.electronAPI.readFileAsArrayBuffer(filePath)
+      if (uint8Array) {
+        const blob = new Blob([uint8Array], { type: 'application/pdf' })
+        const fileName = filePath.split(/[/\\]/).pop() || 'document.pdf'
+        const file = new File([blob], fileName, { type: 'application/pdf' })
+        handleFileSelect([file])
+      }
+    } catch (e) {
+      console.error('Failed to load PDF from path:', e)
     }
-  })
+  }
+}
+
+onMounted(() => {
+  handleFloatingFile()
 })
 
-onUnmounted(() => {
-  window.electronAPI?.removeMainNavigateWithDataListener?.()
+// 监听文件路径变化（从悬浮球）
+watch(() => (window as any).__filePathChanged?.value, () => {
+  handleFloatingFile()
 })
 
 // 文件拖拽上传
