@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, nextTick, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 
 interface Tool {
   id: string
@@ -29,13 +29,8 @@ const emit = defineEmits<{
   selectShare: [shareCode: string]
 }>()
 
-const isHoveringShare = ref(false)
+const isShareExpanded = ref(false)
 const recentShares = ref<HistoryShare[]>([])
-const shareItemRef = ref<HTMLElement | null>(null)
-const dropdownTop = ref(0)
-const dropdownLeft = ref(0)
-const dropdownWidth = ref(0)
-let closeTimer: ReturnType<typeof setTimeout> | null = null
 
 function loadRecentShares() {
   const stored = localStorage.getItem('jf_share_history')
@@ -58,41 +53,13 @@ function loadRecentShares() {
   }
 }
 
-function clearCloseTimer() {
-  if (closeTimer) {
-    clearTimeout(closeTimer)
-    closeTimer = null
+function toggleShareExpand() {
+  if (recentShares.value.length > 0) {
+    isShareExpanded.value = !isShareExpanded.value
+  } else {
+    // 没有最近分享，直接跳转到分享页面
+    emit('select', '/share')
   }
-}
-
-function updateDropdownPosition() {
-  if (shareItemRef.value) {
-    const rect = shareItemRef.value.getBoundingClientRect()
-    dropdownTop.value = rect.bottom + 4
-    dropdownLeft.value = rect.left
-    dropdownWidth.value = rect.width
-  }
-}
-
-function handleMouseEnterShare() {
-  clearCloseTimer()
-  isHoveringShare.value = true
-  nextTick(updateDropdownPosition)
-}
-
-function handleMouseLeaveShare() {
-  clearCloseTimer()
-  closeTimer = setTimeout(() => {
-    isHoveringShare.value = false
-  }, 150)
-}
-
-function handleDropdownEnter() {
-  clearCloseTimer()
-}
-
-function handleDropdownLeave() {
-  isHoveringShare.value = false
 }
 
 function handleSelectShare(shareCode: string) {
@@ -104,7 +71,6 @@ function handleSelect(route: string) {
 }
 
 // 工具列表配置
-// 文件共享始终在第一位
 const shareTool: Tool = {
   id: 'share',
   name: '文件共享',
@@ -158,7 +124,6 @@ const pdfTools: Tool[] = [
 
 const otherTools: Tool[] = [shareTool]
 
-// 根据文件类型获取工具列表
 const availableTools = computed(() => {
   if (props.fileType === 'image') {
     return imageTools
@@ -179,7 +144,6 @@ function formatTime(expiresAt: number | null): string {
   return `${Math.floor(diff / 86400000)}天后过期`
 }
 
-// 组件挂载时预加载数据
 onMounted(() => {
   loadRecentShares()
 })
@@ -187,16 +151,16 @@ onMounted(() => {
 
 <template>
   <div class="tool-selection-list">
-    <TransitionGroup name="list" tag="div">
+    <div
+      v-for="tool in availableTools"
+      :key="tool.id"
+      class="tool-group"
+    >
+      <!-- 工具项 -->
       <div
-        v-for="tool in availableTools"
-        :key="tool.id"
-        :ref="tool.id === 'share' ? (el: any) => shareItemRef = el : undefined"
         class="tool-item"
-        :class="{ 'tool-item-share': tool.id === 'share' }"
-        @click="tool.id === 'share' && recentShares.length > 0 ? null : handleSelect(tool.route)"
-        @mouseenter="tool.id === 'share' ? handleMouseEnterShare() : null"
-        @mouseleave="tool.id === 'share' ? handleMouseLeaveShare() : null"
+        :class="{ 'tool-item-share': tool.id === 'share', expanded: tool.id === 'share' && isShareExpanded }"
+        @click="tool.id === 'share' ? toggleShareExpand() : handleSelect(tool.route)"
       >
         <div class="tool-icon-wrapper" :style="{ backgroundColor: `${tool.color}15` }">
           <svg class="tool-icon" :style="{ color: tool.color }" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -204,36 +168,24 @@ onMounted(() => {
           </svg>
         </div>
         <span class="tool-name">{{ tool.name }}</span>
-        <span v-if="tool.id === 'share' && recentShares.length > 0" class="share-arrow" :class="{ expanded: isHoveringShare }">▼</span>
+        <span v-if="tool.id === 'share' && recentShares.length > 0" class="share-arrow" :class="{ expanded: isShareExpanded }">▼</span>
       </div>
-    </TransitionGroup>
 
-    <!-- 下拉框放在列表外层，使用 fixed 定位避免被裁剪 -->
-    <Transition name="dropdown">
-      <div
-        v-if="isHoveringShare && recentShares.length > 0"
-        class="share-dropdown"
-        :style="{
-          top: `${dropdownTop}px`,
-          left: `${dropdownLeft}px`,
-          width: `${dropdownWidth}px`
-        }"
-        @mouseenter="handleDropdownEnter"
-        @mouseleave="handleDropdownLeave"
-      >
-        <div class="dropdown-title">最近分享</div>
-        <div
-          v-for="share in recentShares"
-          :key="share.shareCode"
-          class="share-item"
-          @click.stop="handleSelectShare(share.shareCode)"
-        >
-          <div class="share-name">{{ share.shareName || share.shareCode }}</div>
-          <div class="share-info">{{ share.memberCount }}人 · {{ share.fileCount }}文件</div>
-          <div class="share-expire">{{ formatTime(share.expiresAt) }}</div>
+      <!-- 文件共享的子菜单 -->
+      <Transition name="expand">
+        <div v-if="tool.id === 'share' && isShareExpanded && recentShares.length > 0" class="submenu">
+          <div
+            v-for="share in recentShares"
+            :key="share.shareCode"
+            class="submenu-item"
+            @click.stop="handleSelectShare(share.shareCode)"
+          >
+            <div class="submenu-item-name">{{ share.shareName || share.shareCode }}</div>
+            <div class="submenu-item-meta">{{ share.memberCount }}人 · {{ share.fileCount }}文件 · {{ formatTime(share.expiresAt) }}</div>
+          </div>
         </div>
-      </div>
-    </Transition>
+      </Transition>
+    </div>
   </div>
 </template>
 
@@ -267,6 +219,11 @@ onMounted(() => {
   background: rgba(102, 126, 234, 0.5);
 }
 
+.tool-group {
+  display: flex;
+  flex-direction: column;
+}
+
 .tool-item {
   display: flex;
   align-items: center;
@@ -277,7 +234,6 @@ onMounted(() => {
   transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
   background: transparent;
   border: 1px solid transparent;
-  position: relative;
 }
 
 .tool-item:hover {
@@ -287,6 +243,11 @@ onMounted(() => {
 
 .tool-item:active {
   background: rgba(102, 126, 234, 0.08);
+}
+
+.tool-item-share.expanded {
+  background: rgba(102, 126, 234, 0.1);
+  border-color: rgba(102, 126, 234, 0.3);
 }
 
 .tool-icon-wrapper {
@@ -316,22 +277,6 @@ onMounted(() => {
   flex: 1;
 }
 
-/* 列表动画 */
-.list-enter-active,
-.list-leave-active {
-  transition: all 0.3s ease;
-}
-
-.list-enter-from {
-  opacity: 0;
-  transform: translateX(-20px);
-}
-
-.list-leave-to {
-  opacity: 0;
-  transform: translateX(20px);
-}
-
 .share-arrow {
   font-size: 8px;
   color: #999;
@@ -342,65 +287,58 @@ onMounted(() => {
   transform: rotate(180deg);
 }
 
-.share-dropdown {
-  position: fixed;
-  background: white;
-  border-radius: 8px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
-  z-index: 100;
+/* 子菜单样式 */
+.submenu {
+  margin-left: 12px;
+  border-left: 2px solid rgba(102, 126, 234, 0.3);
+  padding-left: 8px;
   overflow: hidden;
-  transform-origin: top center;
 }
 
-.dropdown-title {
-  padding: 8px 12px;
-  font-size: 12px;
-  color: #999;
-  border-bottom: 1px solid #eee;
-  background: #f9f9f9;
-}
-
-.share-item {
-  padding: 10px 12px;
+.submenu-item {
+  padding: 8px 10px;
+  border-radius: 6px;
   cursor: pointer;
-  border-bottom: 1px solid #f0f0f0;
   transition: background 0.2s ease;
+  margin: 2px 0;
 }
 
-.share-item:last-child {
-  border-bottom: none;
+.submenu-item:hover {
+  background: rgba(102, 126, 234, 0.08);
 }
 
-.share-item:hover {
-  background: #f5f7fa;
-}
-
-.share-name {
-  font-size: 13px;
+.submenu-item-name {
+  font-size: 12px;
   font-weight: 500;
   color: #333;
   margin-bottom: 2px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.share-info {
-  font-size: 11px;
+.submenu-item-meta {
+  font-size: 10px;
   color: #999;
 }
 
-.share-expire {
-  font-size: 11px;
-  color: #667eea;
-  margin-top: 2px;
+/* 展开动画 */
+.expand-enter-active,
+.expand-leave-active {
+  transition: all 0.25s ease;
 }
 
-.dropdown-enter-active,
-.dropdown-leave-active {
-  transition: all 0.2s ease;
-}
-
-.dropdown-enter-from,
-.dropdown-leave-to {
+.expand-enter-from,
+.expand-leave-to {
   opacity: 0;
-  transform: translateY(-8px);
+  max-height: 0;
+  padding-top: 0;
+  padding-bottom: 0;
+}
+
+.expand-enter-to,
+.expand-leave-from {
+  opacity: 1;
+  max-height: 300px;
 }
 </style>
