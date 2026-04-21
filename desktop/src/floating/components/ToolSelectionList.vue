@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { ref, computed } from 'vue'
 
 interface Tool {
   id: string
@@ -9,6 +9,16 @@ interface Tool {
   color: string
 }
 
+interface HistoryShare {
+  shareCode: string
+  shareId: number
+  shareName: string | null
+  expiresAt: number | null
+  status: number
+  memberCount: number
+  fileCount: number
+}
+
 const props = defineProps<{
   fileType: 'image' | 'pdf' | 'other'
   fileExtension: string
@@ -16,7 +26,51 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   select: [route: string]
+  selectShare: [shareCode: string]
 }>()
+
+const isHoveringShare = ref(false)
+const recentShares = ref<HistoryShare[]>([])
+
+function loadRecentShares() {
+  const stored = localStorage.getItem('jf_share_history')
+  if (stored) {
+    try {
+      const parsed = JSON.parse(stored)
+      const now = Date.now()
+      recentShares.value = parsed
+        .filter((h: HistoryShare) => {
+          if (h.status !== 1) return false
+          if (h.expiresAt && h.expiresAt < now) return false
+          return true
+        })
+        .slice(0, 5)
+    } catch {
+      recentShares.value = []
+    }
+  } else {
+    recentShares.value = []
+  }
+}
+
+function handleMouseEnterShare() {
+  loadRecentShares()
+  isHoveringShare.value = true
+}
+
+function handleMouseLeaveShare() {
+  setTimeout(() => {
+    isHoveringShare.value = false
+  }, 200)
+}
+
+function handleSelectShare(shareCode: string) {
+  emit('selectShare', shareCode)
+}
+
+function handleSelect(route: string) {
+  emit('select', route)
+}
 
 // 工具列表配置
 // 文件共享始终在第一位
@@ -84,8 +138,14 @@ const availableTools = computed(() => {
   }
 })
 
-function handleSelect(route: string) {
-  emit('select', route)
+function formatTime(expiresAt: number | null): string {
+  if (!expiresAt) return '永不过期'
+  const now = Date.now()
+  const diff = expiresAt - now
+  if (diff < 0) return '已过期'
+  if (diff < 3600000) return `${Math.floor(diff / 60000)}分钟后过期`
+  if (diff < 86400000) return `${Math.floor(diff / 3600000)}小时后过期`
+  return `${Math.floor(diff / 86400000)}天后过期`
 }
 </script>
 
@@ -96,7 +156,10 @@ function handleSelect(route: string) {
         v-for="tool in availableTools"
         :key="tool.id"
         class="tool-item"
-        @click="handleSelect(tool.route)"
+        :class="{ 'tool-item-share': tool.id === 'share' }"
+        @click="tool.id === 'share' && recentShares.length > 0 ? null : handleSelect(tool.route)"
+        @mouseenter="tool.id === 'share' ? handleMouseEnterShare() : null"
+        @mouseleave="tool.id === 'share' ? handleMouseLeaveShare() : null"
       >
         <div class="tool-icon-wrapper" :style="{ backgroundColor: `${tool.color}15` }">
           <svg class="tool-icon" :style="{ color: tool.color }" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -104,6 +167,23 @@ function handleSelect(route: string) {
           </svg>
         </div>
         <span class="tool-name">{{ tool.name }}</span>
+        <span v-if="tool.id === 'share' && recentShares.length > 0" class="share-arrow">▶</span>
+        
+        <Transition name="dropdown">
+          <div v-if="tool.id === 'share' && isHoveringShare && recentShares.length > 0" class="share-dropdown">
+            <div class="dropdown-title">最近分享</div>
+            <div
+              v-for="share in recentShares"
+              :key="share.shareCode"
+              class="share-item"
+              @click.stop="handleSelectShare(share.shareCode)"
+            >
+              <div class="share-name">{{ share.shareName || share.shareCode }}</div>
+              <div class="share-info">{{ share.memberCount }}人 · {{ share.fileCount }}文件</div>
+              <div class="share-expire">{{ formatTime(share.expiresAt) }}</div>
+            </div>
+          </div>
+        </Transition>
       </div>
     </TransitionGroup>
   </div>
@@ -149,6 +229,7 @@ function handleSelect(route: string) {
   transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
   background: transparent;
   border: 1px solid transparent;
+  position: relative;
 }
 
 .tool-item:hover {
@@ -201,5 +282,80 @@ function handleSelect(route: string) {
 .list-leave-to {
   opacity: 0;
   transform: translateX(20px);
+}
+
+.share-arrow {
+  font-size: 10px;
+  color: #999;
+  transition: transform 0.2s ease;
+}
+
+.tool-item-share:hover .share-arrow {
+  transform: rotate(90deg);
+}
+
+.share-dropdown {
+  position: absolute;
+  left: 100%;
+  top: 0;
+  margin-left: 8px;
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+  min-width: 200px;
+  z-index: 100;
+  overflow: hidden;
+}
+
+.dropdown-title {
+  padding: 8px 12px;
+  font-size: 12px;
+  color: #999;
+  border-bottom: 1px solid #eee;
+  background: #f9f9f9;
+}
+
+.share-item {
+  padding: 10px 12px;
+  cursor: pointer;
+  border-bottom: 1px solid #f0f0f0;
+  transition: background 0.2s ease;
+}
+
+.share-item:last-child {
+  border-bottom: none;
+}
+
+.share-item:hover {
+  background: #f5f7fa;
+}
+
+.share-name {
+  font-size: 13px;
+  font-weight: 500;
+  color: #333;
+  margin-bottom: 2px;
+}
+
+.share-info {
+  font-size: 11px;
+  color: #999;
+}
+
+.share-expire {
+  font-size: 11px;
+  color: #667eea;
+  margin-top: 2px;
+}
+
+.dropdown-enter-active,
+.dropdown-leave-active {
+  transition: all 0.2s ease;
+}
+
+.dropdown-enter-from,
+.dropdown-leave-to {
+  opacity: 0;
+  transform: translateX(-10px);
 }
 </style>

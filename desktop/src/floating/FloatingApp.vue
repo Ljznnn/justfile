@@ -121,6 +121,25 @@ function handleOpenTool(route: string) {
 }
 
 /**
+ * 选择分享项目，跳转到分享详情页
+ */
+function handleSelectShare(shareCode: string) {
+  console.log('[FloatingBall] handleSelectShare called, shareCode:', shareCode)
+  console.log('[FloatingBall] fileInfo:', fileInfo.value)
+  
+  if (!fileInfo.value) {
+    console.log('[FloatingBall] ERROR: fileInfo is null')
+    return
+  }
+
+  // 跳转到分享详情页，并传递文件路径
+  const shareRoute = `/share/${shareCode}`
+  console.log('[FloatingBall] Calling openToolWithFile, route:', shareRoute, 'path:', fileInfo.value.path)
+  window.electronAPI.openToolWithFile(shareRoute, fileInfo.value.path)
+  collapse()
+}
+
+/**
  * 鼠标离开
  */
 function handleMouseLeave() {
@@ -308,6 +327,7 @@ onUnmounted(() => {
         :file-type="fileInfo?.type || 'other'" 
         :file-extension="fileInfo?.extension || ''"
         @select="handleOpenTool"
+        @select-share="handleSelectShare"
       />
 
       <!-- 关闭按钮 -->
@@ -343,7 +363,7 @@ onUnmounted(() => {
   height: 64px;
   border-radius: 50%;
   background: linear-gradient(135deg, #ffffff 0%, #777f83 100%);
-  border: 3px solid #ffffff;
+  border: 3px solid #f67c38;
   display: flex;
   align-items: center;
   justify-content: center;

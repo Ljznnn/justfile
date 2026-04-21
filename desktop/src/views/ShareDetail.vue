@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import Icon from '@/components/common/Icon.vue'
@@ -342,11 +342,39 @@ onMounted(() => {
   loadShare()
   refreshTimer = window.setInterval(() => {
     shareStore.loadFiles()
-  }, 10000) // Refresh every 10s
+  }, 10000)
+  handleFloatingFile()
 })
 
 onUnmounted(() => {
   if (refreshTimer) clearInterval(refreshTimer)
+})
+
+async function handleFloatingFile() {
+  const globalPath = (window as any).__floatingFilePath
+  if (globalPath?.value) {
+    const filePath = globalPath.value
+    globalPath.value = null
+
+    try {
+      const uint8Array = await window.electronAPI.readFileAsArrayBuffer(filePath)
+      if (uint8Array) {
+        const ext = filePath.split('.').pop()?.toLowerCase() || ''
+        const mimeType = ext === 'jpg' ? 'image/jpeg' : ext === 'pdf' ? 'application/pdf' : `application/${ext}`
+
+        const blob = new Blob([uint8Array], { type: mimeType })
+        const fileName = filePath.split(/[/\\]/).pop() || 'file.' + ext
+        const file = new File([blob], fileName, { type: mimeType })
+        await uploadFile(file)
+      }
+    } catch (e) {
+      console.error('Failed to load file from path:', e)
+    }
+  }
+}
+
+watch(() => (window as any).__filePathChanged?.value, () => {
+  handleFloatingFile()
 })
 </script>
 
