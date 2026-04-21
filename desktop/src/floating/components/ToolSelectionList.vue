@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, nextTick, onMounted } from 'vue'
 
 interface Tool {
   id: string
@@ -31,6 +31,11 @@ const emit = defineEmits<{
 
 const isHoveringShare = ref(false)
 const recentShares = ref<HistoryShare[]>([])
+const shareItemRef = ref<HTMLElement | null>(null)
+const dropdownTop = ref(0)
+const dropdownLeft = ref(0)
+const dropdownWidth = ref(0)
+let closeTimer: ReturnType<typeof setTimeout> | null = null
 
 function loadRecentShares() {
   const stored = localStorage.getItem('jf_share_history')
@@ -53,15 +58,41 @@ function loadRecentShares() {
   }
 }
 
+function clearCloseTimer() {
+  if (closeTimer) {
+    clearTimeout(closeTimer)
+    closeTimer = null
+  }
+}
+
+function updateDropdownPosition() {
+  if (shareItemRef.value) {
+    const rect = shareItemRef.value.getBoundingClientRect()
+    dropdownTop.value = rect.bottom + 4
+    dropdownLeft.value = rect.left
+    dropdownWidth.value = rect.width
+  }
+}
+
 function handleMouseEnterShare() {
-  loadRecentShares()
+  clearCloseTimer()
   isHoveringShare.value = true
+  nextTick(updateDropdownPosition)
 }
 
 function handleMouseLeaveShare() {
-  setTimeout(() => {
+  clearCloseTimer()
+  closeTimer = setTimeout(() => {
     isHoveringShare.value = false
-  }, 200)
+  }, 150)
+}
+
+function handleDropdownEnter() {
+  clearCloseTimer()
+}
+
+function handleDropdownLeave() {
+  isHoveringShare.value = false
 }
 
 function handleSelectShare(shareCode: string) {
@@ -147,6 +178,11 @@ function formatTime(expiresAt: number | null): string {
   if (diff < 86400000) return `${Math.floor(diff / 3600000)}小时后过期`
   return `${Math.floor(diff / 86400000)}天后过期`
 }
+
+// 组件挂载时预加载数据
+onMounted(() => {
+  loadRecentShares()
+})
 </script>
 
 <template>
@@ -155,6 +191,7 @@ function formatTime(expiresAt: number | null): string {
       <div
         v-for="tool in availableTools"
         :key="tool.id"
+        :ref="tool.id === 'share' ? (el: any) => shareItemRef = el : undefined"
         class="tool-item"
         :class="{ 'tool-item-share': tool.id === 'share' }"
         @click="tool.id === 'share' && recentShares.length > 0 ? null : handleSelect(tool.route)"
@@ -167,25 +204,36 @@ function formatTime(expiresAt: number | null): string {
           </svg>
         </div>
         <span class="tool-name">{{ tool.name }}</span>
-        <span v-if="tool.id === 'share' && recentShares.length > 0" class="share-arrow">▶</span>
-        
-        <Transition name="dropdown">
-          <div v-if="tool.id === 'share' && isHoveringShare && recentShares.length > 0" class="share-dropdown">
-            <div class="dropdown-title">最近分享</div>
-            <div
-              v-for="share in recentShares"
-              :key="share.shareCode"
-              class="share-item"
-              @click.stop="handleSelectShare(share.shareCode)"
-            >
-              <div class="share-name">{{ share.shareName || share.shareCode }}</div>
-              <div class="share-info">{{ share.memberCount }}人 · {{ share.fileCount }}文件</div>
-              <div class="share-expire">{{ formatTime(share.expiresAt) }}</div>
-            </div>
-          </div>
-        </Transition>
+        <span v-if="tool.id === 'share' && recentShares.length > 0" class="share-arrow" :class="{ expanded: isHoveringShare }">▼</span>
       </div>
     </TransitionGroup>
+
+    <!-- 下拉框放在列表外层，使用 fixed 定位避免被裁剪 -->
+    <Transition name="dropdown">
+      <div
+        v-if="isHoveringShare && recentShares.length > 0"
+        class="share-dropdown"
+        :style="{
+          top: `${dropdownTop}px`,
+          left: `${dropdownLeft}px`,
+          width: `${dropdownWidth}px`
+        }"
+        @mouseenter="handleDropdownEnter"
+        @mouseleave="handleDropdownLeave"
+      >
+        <div class="dropdown-title">最近分享</div>
+        <div
+          v-for="share in recentShares"
+          :key="share.shareCode"
+          class="share-item"
+          @click.stop="handleSelectShare(share.shareCode)"
+        >
+          <div class="share-name">{{ share.shareName || share.shareCode }}</div>
+          <div class="share-info">{{ share.memberCount }}人 · {{ share.fileCount }}文件</div>
+          <div class="share-expire">{{ formatTime(share.expiresAt) }}</div>
+        </div>
+      </div>
+    </Transition>
   </div>
 </template>
 
@@ -285,26 +333,23 @@ function formatTime(expiresAt: number | null): string {
 }
 
 .share-arrow {
-  font-size: 10px;
+  font-size: 8px;
   color: #999;
   transition: transform 0.2s ease;
 }
 
-.tool-item-share:hover .share-arrow {
-  transform: rotate(90deg);
+.share-arrow.expanded {
+  transform: rotate(180deg);
 }
 
 .share-dropdown {
-  position: absolute;
-  left: 100%;
-  top: 0;
-  margin-left: 8px;
+  position: fixed;
   background: white;
   border-radius: 8px;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
-  min-width: 200px;
   z-index: 100;
   overflow: hidden;
+  transform-origin: top center;
 }
 
 .dropdown-title {
@@ -356,6 +401,6 @@ function formatTime(expiresAt: number | null): string {
 .dropdown-enter-from,
 .dropdown-leave-to {
   opacity: 0;
-  transform: translateX(-10px);
+  transform: translateY(-8px);
 }
 </style>

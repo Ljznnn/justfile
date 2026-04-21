@@ -18,8 +18,9 @@ spring:
       maximum-pool-size: 20
       idle-timeout: 30000
       pool-name: JustFileSharePool
-      max-lifetime: 1800000
+      max-lifetime: 600000
       connection-timeout: 30000
+      connection-test-query: SELECT 1
 
   jackson:
     time-zone: Asia/Shanghai
