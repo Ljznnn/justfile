@@ -3,7 +3,8 @@ import { join } from 'path'
 import { registerIpcHandlers } from './ipc/index'
 import { registerImageIpcHandlers } from './ipc/image'
 import { registerDocumentIpcHandlers } from './ipc/document'
-import { createFloatingBall, closeFloatingBall } from './floatingBall'
+import { createFloatingBall, closeFloatingBall, getFloatingWindow } from './floatingBall'
+import fs from 'fs'
 
 const isDev = !app.isPackaged
 
@@ -19,8 +20,47 @@ registerIpcHandlers()
 registerImageIpcHandlers()
 registerDocumentIpcHandlers()
 
-// 是否启用悬浮球（可通过设置关闭）
-let floatingBallEnabled = true
+// 悬浮球窗口变量引用
+let mainWindowRef: BrowserWindow | null = null
+
+// 从设置文件中读取悬浮球配置
+function getFloatingBallEnabled(): boolean {
+  try {
+    const settingsPath = join(app.getPath('userData'), 'settings.json')
+    if (fs.existsSync(settingsPath)) {
+      const data = fs.readFileSync(settingsPath, 'utf-8')
+      const settings = JSON.parse(data)
+      // 如果设置中明确为 false，则不启用
+      if (settings.floatingBallEnabled === false) {
+        return false
+      }
+    }
+  } catch (error) {
+    console.error('Failed to read floating ball settings:', error)
+  }
+  return true  // 默认启用
+}
+
+// 切换悬浮球显示/隐藏（即使悬浮球未创建也能调用）
+ipcMain.handle('floating:toggle', () => {
+  const floatingWindow = getFloatingWindow()
+  if (!floatingWindow) {
+    // 悬浮球未创建，尝试创建它
+    if (mainWindowRef) {
+      createFloatingBall(mainWindowRef)
+      return true
+    }
+    return false
+  }
+  
+  if (floatingWindow.isVisible()) {
+    floatingWindow.hide()
+    return false
+  } else {
+    floatingWindow.show()
+    return true
+  }
+})
 
 function createWindow(): void {
   // 加载应用图标
@@ -44,10 +84,12 @@ function createWindow(): void {
     }
   })
 
+  mainWindowRef = mainWindow
+
   mainWindow.on('ready-to-show', () => {
     mainWindow.show()
-    // 创建悬浮球
-    if (floatingBallEnabled) {
+    // 创建悬浮球（根据设置决定是否启用）
+    if (getFloatingBallEnabled()) {
       createFloatingBall(mainWindow)
     }
   })

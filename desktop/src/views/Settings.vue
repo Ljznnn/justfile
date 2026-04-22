@@ -1,10 +1,15 @@
 <script setup lang="ts">
+import { onMounted } from 'vue'
 import { useSettingsStore } from '@/stores/settings'
 import { useThemeStore } from '@/stores/theme'
 import Icon from '@/components/common/Icon.vue'
 
 const settingsStore = useSettingsStore()
 const themeStore = useThemeStore()
+
+onMounted(() => {
+  settingsStore.loadSettings()
+})
 </script>
 
 <template>
@@ -38,11 +43,30 @@ const themeStore = useThemeStore()
       </div>
     </div>
 
-    <!-- 说明 -->
+    <!-- 悬浮球设置 -->
     <div class="mt-4 theme-card p-4">
-      <p class="text-muted text-xs">
-        各工具的 API 配置请在对应页面中设置。图床上传、图片压缩、PDF转换等功能的配置项已移至各自的工具页面。
-      </p>
+      <h2 class="text-primary font-medium mb-3 flex items-center gap-2" style="font-size: var(--font-size-card-title)">
+        <Icon name="pushpin-line" :size="16" />
+        悬浮球
+      </h2>
+      <label class="flex items-center justify-between cursor-pointer">
+        <span class="text-sm text-secondary">启动时默认显示悬浮球</span>
+        <div class="relative flex items-center">
+          <span class="text-xs mr-2" :class="settingsStore.floatingBallEnabled ? 'text-[var(--accent)]' : 'text-[var(--text-muted)]'">
+            {{ settingsStore.floatingBallEnabled ? '开' : '关' }}
+          </span>
+          <div class="relative">
+            <input 
+              type="checkbox" 
+              v-model="settingsStore.floatingBallEnabled" 
+              class="sr-only peer"
+              @change="settingsStore.saveSettings()"
+            />
+            <div class="w-11 h-6 bg-[var(--border-input)] rounded-full peer-checked:bg-[var(--text-secondary)] transition-colors"></div>
+            <div class="absolute left-0.5 top-0.5 w-5 h-5 bg-white dark:bg-gray-800 rounded-full transition-transform peer-checked:translate-x-5 shadow-sm ring-1 ring-black/10"></div>
+          </div>
+        </div>
+      </label>
     </div>
   </div>
 </template>

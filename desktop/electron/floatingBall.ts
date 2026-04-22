@@ -451,18 +451,6 @@ function registerFloatingIpc(): void {
     return null
   })
 
-  // 切换悬浮球显示/隐藏
-  ipcMain.handle('floating:toggle', () => {
-    if (!floatingWindow) return false
-    if (floatingWindow.isVisible()) {
-      floatingWindow.hide()
-      return false
-    } else {
-      floatingWindow.show()
-      return true
-    }
-  })
-
   // 获取屏幕尺寸（返回当前悬浮球所在显示器的尺寸）
   ipcMain.handle('floating:getScreenInfo', () => {
     if (!floatingWindow) {

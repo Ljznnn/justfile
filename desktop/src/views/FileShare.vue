@@ -120,6 +120,7 @@ async function refreshHistoryInfo() {
   if (historyShares.value.length === 0) return
 
   refreshingHistory.value = true
+  let failedCount = 0
   const updates: Promise<void>[] = []
 
   for (const share of historyShares.value) {
@@ -133,6 +134,7 @@ async function refreshHistoryInfo() {
           share.status = info.status
         })
         .catch((error: any) => {
+          failedCount++
           // axios 错误结构: error.response.data
           const responseData = error.response?.data
           if (responseData) {
@@ -154,6 +156,11 @@ async function refreshHistoryInfo() {
   // 更新本地存储
   localStorage.setItem('jf_share_history', JSON.stringify(historyShares.value))
   refreshingHistory.value = false
+
+  // 如果有失败的请求，显示提示
+  if (failedCount > 0) {
+    ElMessage.warning(`刷新失败 ${failedCount} 条分享记录，部分信息可能已过期`)
+  }
 }
 
 /**

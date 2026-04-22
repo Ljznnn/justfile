@@ -2,6 +2,8 @@ import { defineStore } from 'pinia'
 import { ref, reactive } from 'vue'
 
 export const useSettingsStore = defineStore('settings', () => {
+  const floatingBallEnabled = ref(true)
+
   // 图片压缩配置
   const compress = reactive({
     tinifyKey: ''
@@ -26,8 +28,13 @@ export const useSettingsStore = defineStore('settings', () => {
   // 加载设置
   async function loadSettings() {
     try {
+      if (!window.electronAPI?.getSettings) return
       const settings = await window.electronAPI.getSettings()
       if (settings) {
+        // 悬浮球设置
+        if (settings.floatingBallEnabled !== undefined) {
+          floatingBallEnabled.value = settings.floatingBallEnabled
+        }
         // 图片压缩
         if (settings.compress) {
           compress.tinifyKey = settings.compress.tinifyKey || ''
@@ -55,7 +62,9 @@ export const useSettingsStore = defineStore('settings', () => {
   // 保存全部设置
   async function saveSettings() {
     try {
+      if (!window.electronAPI?.setSettings) return
       await window.electronAPI.setSettings({
+        floatingBallEnabled: floatingBallEnabled.value,
         compress: {
           tinifyKey: compress.tinifyKey
         },
@@ -78,6 +87,7 @@ export const useSettingsStore = defineStore('settings', () => {
   }
 
   return {
+    floatingBallEnabled,
     compress,
     upload,
     pdf,

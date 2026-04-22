@@ -5,6 +5,7 @@ import LogoImage from '@/assets/logo.png'
 const minimize = () => window.electronAPI.windowMinimize()
 const maximize = () => window.electronAPI.windowMaximize()
 const close = () => window.electronAPI.windowClose()
+const toggleFloatingBall = () => window.electronAPI.floatingToggle()
 </script>
 
 <template>
@@ -20,6 +21,14 @@ const close = () => window.electronAPI.windowClose()
 
     <!-- 窗口控制按钮 -->
     <div class="flex items-center">
+      <!-- 悬浮球显示/隐藏按钮 -->
+      <button
+        @click="toggleFloatingBall"
+        class="window-btn"
+        title="显示/隐藏悬浮球"
+      >
+        <Icon name="pushpin-line" :size="14" />
+      </button>
       <button
         @click="minimize"
         class="window-btn"
