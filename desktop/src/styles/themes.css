@@ -630,26 +630,38 @@
 /* Select 选择器 */
 .el-select__wrapper {
   background: var(--bg-input) !important;
-  border-color: var(--border-input) !important;
+  border: 1px solid var(--border-input) !important;
   border-radius: var(--radius-input) !important;
+  box-shadow: none !important;
 }
 
-.el-select-dropdown {
-  background: var(--bg-card) !important;
-  border: 1px solid var(--border-color) !important;
+.el-select__wrapper:hover {
+  border-color: var(--border-hover) !important;
 }
 
-.el-select-dropdown__item {
+.el-select__wrapper.is-focused {
+  border-color: var(--accent) !important;
+  box-shadow: 0 0 0 1px var(--accent-glow) !important;
+}
+
+.el-select__selection > span {
+  color: var(--text-primary) !important;
+}
+
+.el-select__placeholder {
+  color: var(--text-muted) !important;
+}
+
+.el-select__prefix {
   color: var(--text-secondary) !important;
 }
 
-.el-select-dropdown__item:hover {
-  background: var(--bg-button-hover) !important;
-}
-
-.el-select-dropdown__item.is-selected {
-  color: var(--accent-text) !important;
-  background: var(--bg-button) !important;
+/* Popover 弹出层 */
+.el-popover.el-popper {
+  background: var(--bg-card) !important;
+  border: 1px solid var(--border-input) !important;
+  border-radius: var(--radius-input) !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1) !important;
 }
 
 /* Form 表单 */
@@ -791,6 +803,27 @@
   flex-direction: column !important;
   min-height: 0 !important;
   height: auto !important;
+}
+
+/* Dropdown 下拉菜单 */
+.el-dropdown-menu {
+  background: var(--bg-card) !important;
+  border: 1px solid var(--border-color) !important;
+  border-radius: var(--radius-card) !important;
+}
+
+.el-dropdown-menu__item {
+  color: var(--text-secondary) !important;
+}
+
+.el-dropdown-menu__item:hover {
+  background: var(--bg-button-hover) !important;
+  color: var(--text-primary) !important;
+}
+
+.el-dropdown-menu__item.is-active {
+  color: var(--accent) !important;
+  background: var(--bg-button) !important;
 }
 
 /* 遮罩层 */

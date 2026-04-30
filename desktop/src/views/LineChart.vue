@@ -1,11 +1,22 @@
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, watch, nextTick } from 'vue'
+import { ref, onMounted, onUnmounted, watch, nextTick, computed } from 'vue'
 import { ElMessage } from 'element-plus'
 import Spreadsheet from 'x-data-spreadsheet'
 import 'x-data-spreadsheet/dist/locale/zh-cn'
 import * as echarts from 'echarts'
 import * as XLSX from 'xlsx'
 import Icon from '@/components/common/Icon.vue'
+
+// 图表类型
+type ChartType = 'line' | 'bar' | 'pie' | 'scatter'
+const chartType = ref<ChartType>('line')
+
+const chartTypeOptions = [
+  { value: 'line', label: '折线图', icon: 'line-chart-line' },
+  { value: 'bar', label: '柱状图', icon: 'bar-chart-2-line' },
+  { value: 'pie', label: '饼图', icon: 'pie-chart-2-line' },
+  { value: 'scatter', label: '散点图', icon: 'bubble-chart-line' }
+]
 
 // 图表DOM引用
 const chartDom = ref<HTMLElement | null>(null)
@@ -16,14 +27,12 @@ const scaleSize = ref(100)
 // 画布宽高
 const widthCanvas = ref(720)
 const heightCanvas = ref(400)
-// 下载文件类型
-const downType = ref('1')
 // 图形属性颜色
 const attrColor = ref('#5470c6')
 // 标题位置
 const titlePos = ref<'left' | 'center' | 'right'>('center')
 // 标题
-const title = ref('曲线图')
+const title = ref('图表标题')
 // 副标题
 const subTitle = ref('在线图表制作工具')
 // 显示标题开关
@@ -38,6 +47,14 @@ const waterMarkText = ref('JustFile')
 // 数据
 const columnData = ref(['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'])
 const valueData = ref([23, 24, 18, 25, 27, 28, 25])
+
+// 饼图数据（name-value 格式）
+const pieData = computed(() => {
+  return columnData.value.map((name, index) => ({
+    name,
+    value: valueData.value[index]
+  }))
+})
 
 // 抽屉开关
 const drawer = ref(false)
@@ -63,51 +80,142 @@ const createWatermark = () => {
 }
 
 // 获取图表配置
-const getOption = () => ({
-  backgroundColor: watermarkSwitch.value ? { image: createWatermark() } : '#fff',
-  title: {
-    text: titleSwitch.value ? title.value : '',
-    subtext: subTitleSwitch.value ? subTitle.value : '',
-    left: titlePos.value,
-    top: 10,
-    padding: titlePos.value === 'center' ? [0, 0, 0, 0] : [0, 40, 0, 40]
-  },
-  grid: {
-    top: 100,
-    left: 50,
-    right: 30,
-    bottom: 50
-  },
-  tooltip: {
-    trigger: 'axis'
-  },
-  xAxis: {
-    type: 'category',
-    data: columnData.value
-  },
-  yAxis: {
-    type: 'value'
-  },
-  series: [
-    {
-      type: 'line',
-      data: valueData.value,
-      smooth: true,
-      itemStyle: {
-        color: attrColor.value
-      },
-      lineStyle: {
-        color: attrColor.value
-      },
-      areaStyle: {
-        color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
-          { offset: 0, color: attrColor.value + '66' },
-          { offset: 1, color: attrColor.value + '00' }
-        ])
-      }
+const getOption = () => {
+  const baseOption: any = {
+    backgroundColor: watermarkSwitch.value ? { image: createWatermark() } : '#fff',
+    title: {
+      text: titleSwitch.value ? title.value : '',
+      subtext: subTitleSwitch.value ? subTitle.value : '',
+      left: titlePos.value,
+      top: 10,
+      padding: titlePos.value === 'center' ? [0, 0, 0, 0] : [0, 40, 0, 40]
+    },
+    tooltip: {},
+    grid: {
+      top: 100,
+      left: 50,
+      right: 30,
+      bottom: 50
     }
-  ]
-})
+  }
+
+  switch (chartType.value) {
+    case 'line':
+      return {
+        ...baseOption,
+        xAxis: {
+          type: 'category',
+          data: columnData.value
+        },
+        yAxis: {
+          type: 'value'
+        },
+        series: [
+          {
+            type: 'line',
+            data: valueData.value,
+            smooth: true,
+            itemStyle: {
+              color: attrColor.value
+            },
+            lineStyle: {
+              color: attrColor.value
+            },
+            areaStyle: {
+              color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+                { offset: 0, color: attrColor.value + '66' },
+                { offset: 1, color: attrColor.value + '00' }
+              ])
+            }
+          }
+        ]
+      }
+    case 'bar':
+      return {
+        ...baseOption,
+        xAxis: {
+          type: 'category',
+          data: columnData.value
+        },
+        yAxis: {
+          type: 'value'
+        },
+        series: [
+          {
+            type: 'bar',
+            data: valueData.value,
+            itemStyle: {
+              color: attrColor.value
+            }
+          }
+        ]
+      }
+    case 'pie':
+      return {
+        ...baseOption,
+        tooltip: {
+          trigger: 'item',
+          formatter: '{a} <br/>{b}: {c} ({d}%)'
+        },
+        legend: {
+          orient: 'vertical',
+          left: 'left',
+          top: 80
+        },
+        series: [
+          {
+            name: '数据',
+            type: 'pie',
+            radius: ['40%', '70%'],
+            center: ['60%', '55%'],
+            avoidLabelOverlap: false,
+            itemStyle: {
+              borderRadius: 10,
+              borderColor: '#fff',
+              borderWidth: 2
+            },
+            label: {
+              show: false,
+              position: 'center'
+            },
+            emphasis: {
+              label: {
+                show: true,
+                fontSize: 20,
+                fontWeight: 'bold'
+              }
+            },
+            labelLine: {
+              show: false
+            },
+            data: pieData.value
+          }
+        ]
+      }
+    case 'scatter':
+      return {
+        ...baseOption,
+        xAxis: {
+          type: 'value'
+        },
+        yAxis: {
+          type: 'value'
+        },
+        series: [
+          {
+            type: 'scatter',
+            data: columnData.value.map((x, i) => [i, valueData.value[i]]),
+            symbolSize: 10,
+            itemStyle: {
+              color: attrColor.value
+            }
+          }
+        ]
+      }
+    default:
+      return baseOption
+  }
+}
 
 // 初始化图表
 const initChart = () => {
@@ -118,7 +226,7 @@ const initChart = () => {
 
 // 更新图表
 const updateChart = () => {
-  myChart.value?.setOption(getOption())
+  myChart.value?.setOption(getOption(), true)
 }
 
 // 缩放画布
@@ -137,17 +245,45 @@ const handleResize = () => {
 }
 
 // 下载图表
-const downloadChart = () => {
-  const ext = downType.value === '1' ? 'png' : 'jpeg'
-  const imgUrl = myChart.value?.getDataURL({
+const handleDownload = async (format: string) => {
+  if (!myChart.value) {
+    ElMessage.warning('图表未初始化')
+    return
+  }
+  const ext = format
+  const imgUrl = myChart.value.getDataURL({
     type: ext as 'png' | 'jpeg',
     pixelRatio: 2
   })
-  if (imgUrl) {
+
+  if (!imgUrl) {
+    ElMessage.error('生成图片失败')
+    return
+  }
+
+  const filename = `${chartType.value}-chart.${ext}`
+
+  // Electron 环境：弹出保存对话框
+  if (window.electronAPI?.saveFile) {
+    const savePath = await window.electronAPI.saveFile(filename)
+    if (!savePath) return
+
+    try {
+      // 将 base64 数据写入文件
+      const base64Data = imgUrl.split(',')[1]
+      await window.electronAPI.saveFileWithPath(savePath, base64Data)
+      ElMessage.success('下载成功')
+    } catch (e: any) {
+      ElMessage.error(e.message || '保存失败')
+    }
+  } else {
+    // 浏览器环境：直接下载
     const link = document.createElement('a')
     link.href = imgUrl
-    link.download = `chart.${ext}`
+    link.download = filename
+    document.body.appendChild(link)
     link.click()
+    document.body.removeChild(link)
     ElMessage.success('下载成功')
   }
 }
@@ -173,7 +309,6 @@ const handleFileUpload = async (e: Event) => {
         const sheetArray = XLSX.utils.sheet_to_json(workbook.Sheets[sheet], { header: 1 }) as any[][]
         if (sheetArray.length === 0) continue
 
-        // 跳过第一行（标题行）
         for (let i = 0; i < sheetArray.length; i++) {
           const row = sheetArray[i]
           if (row && row.length >= 2) {
@@ -181,7 +316,7 @@ const handleFileUpload = async (e: Event) => {
             tmpValueData.push(Number(row[1]) ?? 0)
           }
         }
-        break // 只处理第一个sheet
+        break
       }
 
       if (tmpColumnData.length > 0) {
@@ -359,29 +494,63 @@ onUnmounted(() => {
     </router-link>
 
     <!-- 标题 -->
-    <h1 class="text-primary font-semibold mb-6 title-line" style="font-size: var(--font-size-title)">曲线图</h1>
+    <h1 class="text-primary font-semibold mb-6 title-line" style="font-size: var(--font-size-title)">图表制作</h1>
 
     <!-- 配置面板 -->
     <div class="theme-card p-6 mb-6">
       <!-- 操作按钮行 -->
       <div class="flex items-center gap-4 mb-6 pb-5" style="border-bottom: 1px solid var(--border-color)">
-        <el-button type="primary" @click="downloadChart">
-          <Icon name="download-line" :size="16" class="mr-1.5" />
-          下载图表
-        </el-button>
-        <el-radio-group v-model="downType" size="default">
-          <el-radio-button value="1">PNG</el-radio-button>
-          <el-radio-button value="2">JPEG</el-radio-button>
-        </el-radio-group>
+        <!-- 图表类型选择 -->
+        <div class="flex items-center gap-2">
+          <span class="text-muted text-sm">类型</span>
+          <el-select v-model="chartType" @change="updateChart" style="width: 140px">
+            <template #prefix>
+              <Icon :name="chartTypeOptions.find(o => o.value === chartType)?.icon" :size="16" />
+            </template>
+            <el-option
+              v-for="opt in chartTypeOptions"
+              :key="opt.value"
+              :value="opt.value"
+              :label="opt.label"
+            >
+              <div class="flex items-center gap-2">
+                <Icon :name="opt.icon" :size="16" />
+                <span>{{ opt.label }}</span>
+              </div>
+            </el-option>
+          </el-select>
+        </div>
         <div class="flex-1"></div>
-        <el-button @click="fileInput?.click()">
-          <Icon name="upload-line" :size="16" class="mr-1.5" />
-          导入数据
-        </el-button>
-        <el-button @click="openEditor">
-          <Icon name="edit-line" :size="16" class="mr-1.5" />
-          编辑数据
-        </el-button>
+        <!-- 下载按钮 -->
+        <el-popover placement="bottom" :width="140" trigger="click">
+          <template #reference>
+            <el-button type="primary">
+              <Icon name="download-line" :size="16" class="mr-1.5" />
+              下载图表
+            </el-button>
+          </template>
+          <div class="download-options">
+            <div class="download-option" @click="handleDownload('png')">
+              <Icon name="image-line" :size="16" class="mr-2" />
+              <span>PNG 格式</span>
+            </div>
+            <div class="download-option" @click="handleDownload('jpeg')">
+              <Icon name="file-image-line" :size="16" class="mr-2" />
+              <span>JPEG 格式</span>
+            </div>
+          </div>
+        </el-popover>
+        <!-- 数据操作按钮组 -->
+        <div class="flex items-center gap-1">
+          <el-button @click="fileInput?.click()">
+            <Icon name="upload-line" :size="16" class="mr-1.5" />
+            导入数据
+          </el-button>
+          <el-button @click="openEditor">
+            <Icon name="edit-line" :size="16" class="mr-1.5" />
+            编辑数据
+          </el-button>
+        </div>
         <input
           ref="fileInput"
           type="file"
@@ -442,7 +611,7 @@ onUnmounted(() => {
         <el-tab-pane label="图形" name="style">
           <div class="config-content">
             <div class="config-item">
-              <span class="config-label">线条颜色</span>
+              <span class="config-label">颜色</span>
               <el-color-picker v-model="attrColor" @change="updateChart" />
             </div>
           </div>
@@ -478,7 +647,7 @@ onUnmounted(() => {
     <!-- 说明 -->
     <div class="mt-6 theme-card p-5">
       <p class="text-muted text-sm leading-relaxed">
-        曲线图适合展示数据随时间变化的趋势。支持导入 Excel/CSV 文件，第一列为X轴数据，第二列为Y轴数据。
+        支持折线图、柱状图、饼图、散点图四种图表类型。支持导入 Excel/CSV 文件，第一列为X轴数据，第二列为Y轴数据。
         也可点击"编辑数据"在线编辑表格内容。
       </p>
     </div>
@@ -569,5 +738,33 @@ onUnmounted(() => {
 .config-unit {
   font-size: 14px;
   color: var(--text-muted);
+}
+
+/* 下载选项 */
+.download-options {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.download-option {
+  display: flex;
+  align-items: center;
+  padding: 8px 12px;
+  cursor: pointer;
+  border-radius: 4px;
+  color: var(--text-secondary);
+  transition: all 0.2s;
+}
+
+.download-option:hover {
+  background: var(--bg-button-hover);
+  color: var(--text-primary);
+}
+
+/* 下拉菜单选中项 */
+:deep(.el-dropdown-menu__item.is-active) {
+  color: var(--accent);
+  background-color: var(--bg-button);
 }
 </style>

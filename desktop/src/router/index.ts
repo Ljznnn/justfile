@@ -34,8 +34,8 @@ const router = createRouter({
       component: () => import('@/views/PdfEditor.vue')
     },
     {
-      path: '/chart/line',
-      name: 'LineChart',
+      path: '/chart',
+      name: 'ChartMaker',
       component: () => import('@/views/LineChart.vue')
     },
     {
