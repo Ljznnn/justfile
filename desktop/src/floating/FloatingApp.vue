@@ -158,7 +158,7 @@ function handleMouseEnter() {
 }
 
 /**
- * 开始拖动
+ * 开始拖动（也处理双击）
  */
 async function handleMouseDown(e: MouseEvent) {
   if (isExpanded.value) {
@@ -188,6 +188,16 @@ async function handleMouseDown(e: MouseEvent) {
   // 注册全局鼠标事件
   document.addEventListener('mousemove', handleMouseMove)
   document.addEventListener('mouseup', handleMouseUp)
+}
+
+/**
+ * 处理双击
+ */
+function handleDoubleClick() {
+  log('[FloatingBall] 双击悬浮球，打开主窗口')
+  if (window.electronAPI?.floatingOpenMainWindow) {
+    window.electronAPI.floatingOpenMainWindow()
+  }
 }
 
 /**
@@ -290,7 +300,7 @@ onUnmounted(() => {
     @mouseleave="handleMouseLeave"
   >
     <!-- 圆形按钮（始终显示） -->
-    <div class="ball-mini" @mousedown="handleMouseDown">
+    <div class="ball-mini" @mousedown="handleMouseDown" @dblclick="handleDoubleClick">
       <img class="ball-logo" :src="logo" alt="JustFile Logo" draggable="false" @dragstart.prevent />
     </div>
     

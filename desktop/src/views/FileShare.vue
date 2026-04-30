@@ -69,7 +69,7 @@ const joinLoading = ref(false)
 
 // Expiration options for Element Plus select
 const expireOptions = [
-  { label: '永不过期', value: undefined as number | undefined },
+  { label: '永不过期', value: 0 as number },
   { label: '1小时', value: 1 },
   { label: '24小时', value: 24 },
   { label: '3天', value: 72 },

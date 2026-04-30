@@ -174,6 +174,7 @@ interface ElectronAPI {
   removeMainNavigateWithDataListener: () => void
   onFloatingLog: (callback: (args: any[]) => void) => void
   removeFloatingLogListener: () => void
+  floatingOpenMainWindow: () => void
 }
 
 declare global {

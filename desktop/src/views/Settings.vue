@@ -43,30 +43,52 @@ onMounted(() => {
       </div>
     </div>
 
-    <!-- 悬浮球设置 -->
+    <!-- 通用设置 -->
     <div class="mt-4 theme-card p-4">
       <h2 class="text-primary font-medium mb-3 flex items-center gap-2" style="font-size: var(--font-size-card-title)">
-        <Icon name="pushpin-line" :size="16" />
-        悬浮球
+        <Icon name="settings-3-line" :size="16" />
+        通用
       </h2>
-      <label class="flex items-center justify-between cursor-pointer">
-        <span class="text-sm text-secondary">启动时默认显示悬浮球</span>
-        <div class="relative flex items-center">
-          <span class="text-xs mr-2" :class="settingsStore.floatingBallEnabled ? 'text-[var(--accent)]' : 'text-[var(--text-muted)]'">
-            {{ settingsStore.floatingBallEnabled ? '开' : '关' }}
-          </span>
-          <div class="relative">
-            <input 
-              type="checkbox" 
-              v-model="settingsStore.floatingBallEnabled" 
-              class="sr-only peer"
-              @change="settingsStore.saveSettings()"
-            />
-            <div class="w-11 h-6 bg-[var(--border-input)] rounded-full peer-checked:bg-[var(--text-secondary)] transition-colors"></div>
-            <div class="absolute left-0.5 top-0.5 w-5 h-5 bg-white dark:bg-gray-800 rounded-full transition-transform peer-checked:translate-x-5 shadow-sm ring-1 ring-black/10"></div>
+      <div class="flex flex-col gap-4">
+        <!-- 关闭时缩小到系统托盘 -->
+        <label class="flex items-center justify-between cursor-pointer">
+          <span class="text-sm text-secondary">关闭时缩小到系统托盘</span>
+          <div class="relative flex items-center">
+            <span class="text-xs mr-2" :class="settingsStore.minimizeToTray ? 'text-[var(--accent)]' : 'text-[var(--text-muted)]'">
+              {{ settingsStore.minimizeToTray ? '开' : '关' }}
+            </span>
+            <div class="relative">
+              <input
+                type="checkbox"
+                v-model="settingsStore.minimizeToTray"
+                class="sr-only peer"
+                @change="settingsStore.saveSettings()"
+              />
+              <div class="w-11 h-6 bg-[var(--border-input)] rounded-full peer-checked:bg-[var(--text-secondary)] transition-colors"></div>
+              <div class="absolute left-0.5 top-0.5 w-5 h-5 bg-white dark:bg-gray-800 rounded-full transition-transform peer-checked:translate-x-5 shadow-sm ring-1 ring-black/10"></div>
+            </div>
           </div>
-        </div>
-      </label>
+        </label>
+        <!-- 启动时默认显示悬浮球 -->
+        <label class="flex items-center justify-between cursor-pointer">
+          <span class="text-sm text-secondary">启动时默认显示悬浮球</span>
+          <div class="relative flex items-center">
+            <span class="text-xs mr-2" :class="settingsStore.floatingBallEnabled ? 'text-[var(--accent)]' : 'text-[var(--text-muted)]'">
+              {{ settingsStore.floatingBallEnabled ? '开' : '关' }}
+            </span>
+            <div class="relative">
+              <input
+                type="checkbox"
+                v-model="settingsStore.floatingBallEnabled"
+                class="sr-only peer"
+                @change="settingsStore.saveSettings()"
+              />
+              <div class="w-11 h-6 bg-[var(--border-input)] rounded-full peer-checked:bg-[var(--text-secondary)] transition-colors"></div>
+              <div class="absolute left-0.5 top-0.5 w-5 h-5 bg-white dark:bg-gray-800 rounded-full transition-transform peer-checked:translate-x-5 shadow-sm ring-1 ring-black/10"></div>
+            </div>
+          </div>
+        </label>
+      </div>
     </div>
   </div>
 </template>

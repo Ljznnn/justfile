@@ -3,6 +3,7 @@ import { ref, reactive } from 'vue'
 
 export const useSettingsStore = defineStore('settings', () => {
   const floatingBallEnabled = ref(true)
+  const minimizeToTray = ref(true) // 关闭时缩小到工具栏，默认开启
 
   // 图片压缩配置
   const compress = reactive({
@@ -35,6 +36,9 @@ export const useSettingsStore = defineStore('settings', () => {
         if (settings.floatingBallEnabled !== undefined) {
           floatingBallEnabled.value = settings.floatingBallEnabled
         }
+        if (settings.minimizeToTray !== undefined) {
+          minimizeToTray.value = settings.minimizeToTray
+        }
         // 图片压缩
         if (settings.compress) {
           compress.tinifyKey = settings.compress.tinifyKey || ''
@@ -65,6 +69,7 @@ export const useSettingsStore = defineStore('settings', () => {
       if (!window.electronAPI?.setSettings) return
       await window.electronAPI.setSettings({
         floatingBallEnabled: floatingBallEnabled.value,
+        minimizeToTray: minimizeToTray.value,
         compress: {
           tinifyKey: compress.tinifyKey
         },
@@ -88,6 +93,7 @@ export const useSettingsStore = defineStore('settings', () => {
 
   return {
     floatingBallEnabled,
+    minimizeToTray,
     compress,
     upload,
     pdf,

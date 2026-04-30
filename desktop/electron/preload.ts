@@ -94,5 +94,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   },
   removeFloatingLogListener: () => {
     ipcRenderer.removeAllListeners('floating:logToMain')
-  }
+  },
+
+  // 从悬浮球打开主窗口
+  floatingOpenMainWindow: () => ipcRenderer.send('floating:openMainWindow')
 })
