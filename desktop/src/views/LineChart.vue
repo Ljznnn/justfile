@@ -46,10 +46,33 @@ const waterMarkText = ref('JustFile')
 
 // 数据
 const columnData = ref(['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'])
+// 多列数据（第一列是名称，后面是各系列数据）
+const multiSeriesData = ref<string[][]>([
+  ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'], // 名称列
+  ['23', '24', '18', '25', '27', '28', '25'],        // 系列1
+  ['20', '22', '25', '23', '26', '24', '28']         // 系列2
+])
+// 系列名称
+const seriesNames = ref(['系列1', '系列2'])
+// 是否启用多列模式
+const multiColumnMode = ref(false)
+// 系列数量
+const seriesCount = ref(2)
+
+// 单列数据（兼容旧模式）
 const valueData = ref([23, 24, 18, 25, 27, 28, 25])
 
 // 饼图数据（name-value 格式）
 const pieData = computed(() => {
+  if (multiColumnMode.value && multiSeriesData.value.length > 1) {
+    // 多列模式：使用第一列作为名称，第二列作为值
+    const names = multiSeriesData.value[0] || []
+    const values = multiSeriesData.value[1] || []
+    return names.map((name, index) => ({
+      name,
+      value: Number(values[index]) || 0
+    }))
+  }
   return columnData.value.map((name, index) => ({
     name,
     value: valueData.value[index]
@@ -99,56 +122,85 @@ const getOption = () => {
     }
   }
 
+  // 获取X轴数据
+  const getXAxisData = () => {
+    if (multiColumnMode.value && multiSeriesData.value.length > 0) {
+      return multiSeriesData.value[0] || []
+    }
+    return columnData.value
+  }
+
+  // 获取系列数据
+  const getSeriesData = () => {
+    if (multiColumnMode.value && multiSeriesData.value.length > 1) {
+      const result = multiSeriesData.value.slice(1).map((data, index) => ({
+        name: seriesNames.value[index] || `系列${index + 1}`,
+        data: data.map(v => Number(v) || 0)
+      }))
+      console.log('getSeriesData:', result)
+      return result
+    }
+    return [{
+      name: '数据',
+      data: valueData.value.map(v => Number(v) || 0)
+    }]
+  }
+
+  // 生成系列配置
+  const generateSeries = (type: string) => {
+    const seriesData = getSeriesData()
+    const colors = ['#5470c6', '#91cc75', '#fac858', '#ee6666', '#73c0de', '#3ba272', '#fc8452', '#9a60b4', '#ea7ccc']
+
+    return seriesData.map((item, index) => {
+      const color = colors[index % colors.length]
+      const base: any = {
+        type,
+        name: item.name,
+        data: item.data,
+        itemStyle: { color }
+      }
+
+      if (type === 'line') {
+        base.smooth = true
+        base.lineStyle = { color }
+        base.areaStyle = {
+          color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+            { offset: 0, color: color + '66' },
+            { offset: 1, color: color + '00' }
+          ])
+        }
+      }
+
+      return base
+    })
+  }
+
   switch (chartType.value) {
     case 'line':
       return {
         ...baseOption,
+        legend: multiColumnMode.value ? { top: 60 } : undefined,
         xAxis: {
           type: 'category',
-          data: columnData.value
+          data: getXAxisData()
         },
         yAxis: {
           type: 'value'
         },
-        series: [
-          {
-            type: 'line',
-            data: valueData.value,
-            smooth: true,
-            itemStyle: {
-              color: attrColor.value
-            },
-            lineStyle: {
-              color: attrColor.value
-            },
-            areaStyle: {
-              color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
-                { offset: 0, color: attrColor.value + '66' },
-                { offset: 1, color: attrColor.value + '00' }
-              ])
-            }
-          }
-        ]
+        series: generateSeries('line')
       }
     case 'bar':
       return {
         ...baseOption,
+        legend: multiColumnMode.value ? { top: 60 } : undefined,
         xAxis: {
           type: 'category',
-          data: columnData.value
+          data: getXAxisData()
         },
         yAxis: {
           type: 'value'
         },
-        series: [
-          {
-            type: 'bar',
-            data: valueData.value,
-            itemStyle: {
-              color: attrColor.value
-            }
-          }
-        ]
+        series: generateSeries('bar')
       }
     case 'pie':
       return {
@@ -195,22 +247,22 @@ const getOption = () => {
     case 'scatter':
       return {
         ...baseOption,
+        legend: multiColumnMode.value ? { top: 60 } : undefined,
         xAxis: {
           type: 'value'
         },
         yAxis: {
           type: 'value'
         },
-        series: [
-          {
-            type: 'scatter',
-            data: columnData.value.map((x, i) => [i, valueData.value[i]]),
-            symbolSize: 10,
-            itemStyle: {
-              color: attrColor.value
-            }
+        series: getSeriesData().map((item, index) => ({
+          type: 'scatter',
+          name: item.name,
+          data: item.data.map((v: number, i: number) => [i, v]),
+          symbolSize: 10,
+          itemStyle: {
+            color: ['#5470c6', '#91cc75', '#fac858', '#ee6666', '#73c0de'][index % 5]
           }
-        ]
+        }))
       }
     default:
       return baseOption
@@ -227,6 +279,57 @@ const initChart = () => {
 // 更新图表
 const updateChart = () => {
   myChart.value?.setOption(getOption(), true)
+}
+
+// 处理多系列模式切换
+const handleMultiColumnModeChange = (enabled: boolean) => {
+  if (enabled) {
+    // 开启多系列模式时，同步系列数量
+    seriesCount.value = multiSeriesData.value.length - 1
+    // 确保系列名称数组有足够的元素
+    while (seriesNames.value.length < seriesCount.value) {
+      seriesNames.value.push(`系列${seriesNames.value.length + 1}`)
+    }
+    updateRowsData()
+  }
+  updateChart()
+}
+
+// 处理系列数量变化
+const handleSeriesCountChange = (count: number) => {
+  console.log('handleSeriesCountChange:', count, 'current multiSeriesData:', multiSeriesData.value)
+
+  // 更新系列名称数组
+  const newNames: string[] = []
+  for (let i = 0; i < count; i++) {
+    newNames.push(seriesNames.value[i] || `系列${i + 1}`)
+  }
+  seriesNames.value = newNames
+
+  // 获取名称列的长度，用于初始化新系列的数据
+  const nameColLength = multiSeriesData.value[0]?.length || 7
+
+  // 更新多列数据数组
+  const newData: string[][] = []
+  // 第一列是名称列
+  newData.push(multiSeriesData.value[0] || ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'])
+  // 后面是各系列数据
+  for (let i = 1; i <= count; i++) {
+    if (multiSeriesData.value[i] && multiSeriesData.value[i].length > 0 && multiSeriesData.value[i].some(v => v !== '')) {
+      newData.push([...multiSeriesData.value[i]]) // 复制现有数据
+    } else {
+      // 新系列初始化为随机数据（20-30范围）
+      const randomData = Array.from({ length: nameColLength }, () => String(Math.floor(Math.random() * 11) + 20))
+      newData.push(randomData)
+    }
+  }
+  multiSeriesData.value = newData
+
+  console.log('After update multiSeriesData:', multiSeriesData.value)
+
+  // 同步更新 rowsData
+  updateRowsData()
+  updateChart()
 }
 
 // 缩放画布
@@ -302,29 +405,50 @@ const handleFileUpload = async (e: Event) => {
       const data = ev.target.result
       const workbook = XLSX.read(data, { type: 'array' })
 
-      let tmpColumnData: string[] = []
-      let tmpValueData: number[] = []
-
       for (const sheet in workbook.Sheets) {
         const sheetArray = XLSX.utils.sheet_to_json(workbook.Sheets[sheet], { header: 1 }) as any[][]
         if (sheetArray.length === 0) continue
 
-        for (let i = 0; i < sheetArray.length; i++) {
-          const row = sheetArray[i]
-          if (row && row.length >= 2) {
-            tmpColumnData.push(String(row[0] ?? ''))
-            tmpValueData.push(Number(row[1]) ?? 0)
-          }
-        }
-        break
-      }
+        // 检测列数
+        const maxCols = Math.max(...sheetArray.map(row => row?.length || 0))
 
-      if (tmpColumnData.length > 0) {
-        columnData.value = tmpColumnData
-        valueData.value = tmpValueData
+        if (maxCols > 2 && multiColumnMode.value) {
+          // 多列模式：读取所有列
+          const newData: string[][] = []
+          for (let col = 0; col < maxCols; col++) {
+            newData[col] = []
+          }
+          for (let i = 0; i < sheetArray.length; i++) {
+            const row = sheetArray[i]
+            for (let col = 0; col < maxCols; col++) {
+              newData[col].push(String(row?.[col] ?? ''))
+            }
+          }
+          multiSeriesData.value = newData
+          seriesCount.value = maxCols - 1
+          // 更新系列名称
+          while (seriesNames.value.length < seriesCount.value) {
+            seriesNames.value.push(`系列${seriesNames.value.length + 1}`)
+          }
+        } else {
+          // 单列模式或两列数据
+          const tmpColumnData: string[] = []
+          const tmpValueData: number[] = []
+          for (let i = 0; i < sheetArray.length; i++) {
+            const row = sheetArray[i]
+            if (row && row.length >= 2) {
+              tmpColumnData.push(String(row[0] ?? ''))
+              tmpValueData.push(Number(row[1]) ?? 0)
+            }
+          }
+          columnData.value = tmpColumnData
+          valueData.value = tmpValueData
+        }
+
         updateChart()
         updateRowsData()
         ElMessage.success('数据导入成功')
+        break
       }
     } catch (err) {
       console.error(err)
@@ -337,13 +461,35 @@ const handleFileUpload = async (e: Event) => {
 
 // 更新表格数据
 const updateRowsData = () => {
-  const res: any = {}
-  const len = Math.max(columnData.value.length, valueData.value.length)
-  for (let i = 0; i < len; i++) {
-    res[i] = {
-      cells: {
-        0: { text: columnData.value[i] ?? '' },
-        1: { text: String(valueData.value[i] ?? '') }
+  console.log('updateRowsData called, multiColumnMode:', multiColumnMode.value, 'multiSeriesData length:', multiSeriesData.value.length)
+  const res: any = { len: 0 }
+  const extraRows = 20 // 额外的空行数
+
+  if (multiColumnMode.value) {
+    // 多列模式
+    const maxLen = Math.max(...multiSeriesData.value.map(arr => arr.length))
+    const totalRows = maxLen + extraRows
+    res.len = totalRows
+
+    for (let i = 0; i < totalRows; i++) {
+      const cells: any = {}
+      multiSeriesData.value.forEach((col, colIndex) => {
+        cells[colIndex] = { text: String(col[i] ?? '') }
+      })
+      res[i] = { cells }
+    }
+  } else {
+    // 单列模式
+    const len = Math.max(columnData.value.length, valueData.value.length)
+    const totalRows = len + extraRows
+    res.len = totalRows
+
+    for (let i = 0; i < totalRows; i++) {
+      res[i] = {
+        cells: {
+          0: { text: columnData.value[i] ?? '' },
+          1: { text: String(valueData.value[i] ?? '') }
+        }
       }
     }
   }
@@ -352,14 +498,65 @@ const updateRowsData = () => {
 
 // Spreadsheet数据转echarts数据
 const toEchartsData = (data: any) => {
-  const tmpColumn: string[] = []
-  const tmpValue: number[] = []
-  for (const item in data.rows) {
-    if (item === 'len') continue
-    tmpColumn.push(data.rows[item]?.cells?.[0]?.text ?? '')
-    tmpValue.push(Number(data.rows[item]?.cells?.[1]?.text) ?? 0)
+  if (multiColumnMode.value) {
+    // 多列模式：获取所有列的数据
+    const result: string[][] = []
+    let maxCol = 0
+    for (const item in data.rows) {
+      if (item === 'len') continue
+      const cells = data.rows[item]?.cells || {}
+      maxCol = Math.max(maxCol, ...Object.keys(cells).map(Number))
+    }
+    maxCol += 1 // 列数
+
+    // 找出最大行数
+    let maxRow = 0
+    for (const item in data.rows) {
+      if (item === 'len') continue
+      maxRow = Math.max(maxRow, Number(item) + 1)
+    }
+
+    // 初始化列数组
+    for (let col = 0; col < maxCol; col++) {
+      result[col] = []
+    }
+
+    // 填充数据，并找出最后一行有数据的位置
+    let lastNonEmptyRow = -1
+    for (let row = 0; row < maxRow; row++) {
+      const cells = data.rows[row]?.cells || {}
+      let hasData = false
+      for (let col = 0; col < maxCol; col++) {
+        const text = cells[col]?.text ?? ''
+        result[col].push(text)
+        if (text.trim() !== '') hasData = true
+      }
+      if (hasData) lastNonEmptyRow = row
+    }
+
+    // 截断到最后一行有数据的位置
+    if (lastNonEmptyRow >= 0) {
+      for (let col = 0; col < maxCol; col++) {
+        result[col] = result[col].slice(0, lastNonEmptyRow + 1)
+      }
+    }
+
+    return result
+  } else {
+    // 单列模式
+    const tmpColumn: string[] = []
+    const tmpValue: number[] = []
+    for (const item in data.rows) {
+      if (item === 'len') continue
+      const colText = data.rows[item]?.cells?.[0]?.text ?? ''
+      const valText = data.rows[item]?.cells?.[1]?.text ?? ''
+      // 过滤掉空行
+      if (colText.trim() === '' && valText.trim() === '') continue
+      tmpColumn.push(colText)
+      tmpValue.push(Number(valText) || 0)
+    }
+    return [tmpColumn, tmpValue]
   }
-  return [tmpColumn, tmpValue]
 }
 
 // 打开编辑数据抽屉
@@ -370,6 +567,8 @@ const openEditor = () => {
 
 // 抽屉打开后初始化 Spreadsheet
 const onDrawerOpened = async () => {
+  // 先更新表格数据
+  updateRowsData()
   await nextTick()
 
   requestAnimationFrame(() => {
@@ -393,6 +592,14 @@ const onDrawerOpened = async () => {
         const height = container.clientHeight || 400
         const width = container.clientWidth || window.innerWidth - 40
 
+        // 计算列数（额外增加10列供用户添加新数据）
+        const extraCols = 10
+        let colCount = 2 + extraCols
+        if (multiColumnMode.value) {
+          colCount = multiSeriesData.value.length + extraCols
+        }
+        console.log('Spreadsheet init, colCount:', colCount, 'rowsData:', rowsData.value)
+
         spreadsheetInstance = new Spreadsheet('#spreadsheet-container', {
           showToolbar: false,
           showBottomBar: false,
@@ -414,12 +621,30 @@ const onDrawerOpened = async () => {
                 }
               }
             ],
-            rows: rowsData.value
+            rows: rowsData.value,
+            cols: { len: colCount }
           })
           .change((data: any) => {
-            const [newColumn, newValue] = toEchartsData(data)
-            columnData.value = newColumn
-            valueData.value = newValue
+            const result = toEchartsData(data)
+            console.log('Spreadsheet change:', { multiColumnMode: multiColumnMode.value, result })
+            if (multiColumnMode.value) {
+              // 多列模式
+              multiSeriesData.value = result as string[][]
+              // 更新系列数量
+              if (result.length > 1) {
+                seriesCount.value = result.length - 1
+                // 更新系列名称
+                while (seriesNames.value.length < seriesCount.value) {
+                  seriesNames.value.push(`系列${seriesNames.value.length + 1}`)
+                }
+              }
+              console.log('Updated multiSeriesData:', multiSeriesData.value, 'seriesCount:', seriesCount.value)
+            } else {
+              // 单列模式
+              const [newColumn, newValue] = result as [string[], number[]]
+              columnData.value = newColumn
+              valueData.value = newValue
+            }
             updateChart()
           })
       } catch (e) {
@@ -604,6 +829,51 @@ onUnmounted(() => {
                 <el-radio-button value="right">右对齐</el-radio-button>
               </el-radio-group>
             </div>
+          </div>
+        </el-tab-pane>
+
+        <!-- 数据设置 -->
+        <el-tab-pane label="数据" name="data">
+          <div class="config-content">
+            <div class="config-item">
+              <el-checkbox v-model="multiColumnMode" @change="handleMultiColumnModeChange" />
+              <span class="config-label">多系列模式</span>
+            </div>
+            <template v-if="multiColumnMode">
+              <div class="config-item">
+                <span class="config-label">系列数量</span>
+                <el-input-number
+                  v-model="seriesCount"
+                  :min="1"
+                  :max="8"
+                  @change="handleSeriesCountChange"
+                />
+              </div>
+              <div class="w-full mt-4">
+                <div class="text-secondary text-xs font-medium mb-2">系列名称</div>
+                <div class="flex flex-wrap gap-3">
+                  <div
+                    v-for="(_, index) in seriesNames"
+                    :key="index"
+                    class="flex items-center gap-2"
+                  >
+                    <span class="text-muted text-xs">系列{{ index + 1 }}</span>
+                    <el-input
+                      v-model="seriesNames[index]"
+                      placeholder="名称"
+                      style="width: 100px"
+                      @change="updateChart"
+                    />
+                  </div>
+                </div>
+              </div>
+              <div class="w-full mt-4 p-3 rounded-lg" style="background: var(--bg-input)">
+                <div class="text-muted text-xs mb-2">数据格式说明：</div>
+                <div class="text-muted text-xs">• 第一列：X轴标签（如周一、周二...）</div>
+                <div class="text-muted text-xs">• 第二列起：各系列数值（每列对应一条曲线）</div>
+                <div class="text-muted text-xs mt-2">点击"编辑数据"可输入多列数据</div>
+              </div>
+            </template>
           </div>
         </el-tab-pane>
 
