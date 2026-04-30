@@ -665,32 +665,59 @@ async function handleFloatingFile() {
       const uint8Array = await window.electronAPI.readFileAsArrayBuffer(filePath)
       if (uint8Array) {
         const workbook = XLSX.read(uint8Array, { type: 'array' })
-        let tmpColumnData: string[] = []
-        let tmpValueData: number[] = []
 
         for (const sheet in workbook.Sheets) {
           const sheetArray = XLSX.utils.sheet_to_json(workbook.Sheets[sheet], { header: 1 }) as any[][]
           if (sheetArray.length === 0) continue
 
-          for (let i = 0; i < sheetArray.length; i++) {
-            const row = sheetArray[i]
-            if (row && row.length >= 2) {
-              tmpColumnData.push(String(row[0] ?? ''))
-              tmpValueData.push(Number(row[1]) ?? 0)
-            }
-          }
-          break
-        }
+          // 检测列数
+          const maxCols = Math.max(...sheetArray.map(row => row?.length || 0))
 
-        if (tmpColumnData.length > 0) {
-          columnData.value = tmpColumnData
-          valueData.value = tmpValueData
+          if (maxCols > 2) {
+            // 多列模式：读取所有列
+            multiColumnMode.value = true
+            const newData: string[][] = []
+            for (let col = 0; col < maxCols; col++) {
+              newData[col] = []
+            }
+            for (let i = 0; i < sheetArray.length; i++) {
+              const row = sheetArray[i]
+              for (let col = 0; col < maxCols; col++) {
+                newData[col].push(String(row?.[col] ?? ''))
+              }
+            }
+            multiSeriesData.value = newData
+            seriesCount.value = maxCols - 1
+            // 更新系列名称
+            seriesNames.value = []
+            for (let i = 0; i < seriesCount.value; i++) {
+              seriesNames.value.push(`系列${i + 1}`)
+            }
+          } else {
+            // 单列模式或两列数据
+            multiColumnMode.value = false
+            const tmpColumnData: string[] = []
+            const tmpValueData: number[] = []
+            for (let i = 0; i < sheetArray.length; i++) {
+              const row = sheetArray[i]
+              if (row && row.length >= 2) {
+                tmpColumnData.push(String(row[0] ?? ''))
+                tmpValueData.push(Number(row[1]) ?? 0)
+              }
+            }
+            columnData.value = tmpColumnData
+            valueData.value = tmpValueData
+          }
+
           updateChart()
           updateRowsData()
+          ElMessage.success('数据导入成功')
+          break
         }
       }
     } catch (e) {
       console.error('Failed to load file from path:', e)
+      ElMessage.error('文件解析失败')
     }
   }
 }

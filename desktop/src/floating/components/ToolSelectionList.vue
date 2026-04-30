@@ -79,6 +79,14 @@ const shareTool: Tool = {
   color: '#667eea'
 }
 
+const chartTool: Tool = {
+  id: 'chart-maker',
+  name: '图表制作',
+  icon: 'M3 3v18h18M9 17V9m4 8V5m4 12v-4',
+  route: '/chart',
+  color: '#f093fb'
+}
+
 const imageTools: Tool[] = [
   shareTool,
   {
@@ -122,7 +130,17 @@ const pdfTools: Tool[] = [
   }
 ]
 
-const otherTools: Tool[] = [shareTool]
+// 表格文件支持的扩展名
+const spreadsheetExtensions = ['.xls', '.xlsx', '.csv']
+
+const otherTools = computed(() => {
+  // 如果是表格文件，显示图表制作和文件共享
+  if (spreadsheetExtensions.includes(props.fileExtension.toLowerCase())) {
+    return [shareTool, chartTool]
+  }
+  // 其他文件只显示文件共享
+  return [shareTool]
+})
 
 const availableTools = computed(() => {
   if (props.fileType === 'image') {
@@ -130,7 +148,7 @@ const availableTools = computed(() => {
   } else if (props.fileType === 'pdf') {
     return pdfTools
   } else {
-    return otherTools
+    return otherTools.value
   }
 })
 
