@@ -13,7 +13,8 @@ const iconMap: Record<string, string> = {
   pdf: 'file-pdf-2-line',
   merge: 'file-add-line',
   edit: 'edit-line',
-  share: 'share-line'
+  share: 'share-line',
+  chart: 'line-chart-line'
 }
 
 const handleClick = () => router.push(props.feature.route)

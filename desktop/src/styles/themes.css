@@ -567,7 +567,7 @@
 /* Input 输入框 */
 .el-input__wrapper {
   background: var(--bg-input) !important;
-  border-color: var(--border-input) !important;
+  border: 1px solid var(--border-input) !important;
   border-radius: var(--radius-input) !important;
   box-shadow: none !important;
 }
@@ -587,6 +587,44 @@
 
 .el-input__inner::placeholder {
   color: var(--text-muted) !important;
+}
+
+/* InputNumber 数字输入框 */
+.el-input-number {
+  --el-input-number-border-radius: var(--radius-input) !important;
+  background: var(--bg-input) !important;
+  border: 1px solid var(--border-input) !important;
+  border-radius: var(--radius-input) !important;
+  overflow: hidden;
+}
+
+.el-input-number .el-input__wrapper {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  border-radius: 0 !important;
+  padding: 0 8px;
+}
+
+.el-input-number .el-input-number__decrease,
+.el-input-number .el-input-number__increase {
+  background: var(--bg-button) !important;
+  border: none !important;
+  color: var(--text-secondary) !important;
+}
+
+.el-input-number .el-input-number__decrease:hover,
+.el-input-number .el-input-number__increase:hover {
+  background: var(--bg-button-hover) !important;
+  color: var(--text-primary) !important;
+}
+
+.el-input-number:hover {
+  border-color: var(--border-hover) !important;
+}
+
+.el-input-number.is-focus {
+  border-color: var(--accent) !important;
 }
 
 /* Select 选择器 */
@@ -628,6 +666,131 @@
 .el-switch.is-checked .el-switch__core {
   background: var(--accent) !important;
   border-color: var(--accent) !important;
+}
+
+/* Checkbox 复选框 */
+.el-checkbox__inner {
+  background: var(--bg-input) !important;
+  border-color: var(--border-input) !important;
+}
+
+.el-checkbox__inner:hover {
+  border-color: var(--accent) !important;
+}
+
+.el-checkbox.is-checked .el-checkbox__inner {
+  background: var(--accent) !important;
+  border-color: var(--accent) !important;
+}
+
+.el-checkbox__label {
+  color: var(--text-secondary) !important;
+}
+
+/* Radio 单选框 */
+.el-radio__inner {
+  background: var(--bg-input) !important;
+  border-color: var(--border-input) !important;
+}
+
+.el-radio__inner:hover {
+  border-color: var(--accent) !important;
+}
+
+.el-radio.is-checked .el-radio__inner {
+  background: var(--accent) !important;
+  border-color: var(--accent) !important;
+}
+
+.el-radio__label {
+  color: var(--text-secondary) !important;
+}
+
+/* Radio Button */
+.el-radio-button__inner {
+  background: var(--bg-button) !important;
+  border-color: var(--border-button) !important;
+  color: var(--text-primary) !important;
+}
+
+.el-radio-button__inner:hover {
+  background: var(--bg-button-hover) !important;
+  border-color: var(--border-button-hover) !important;
+}
+
+.el-radio-button.is-active .el-radio-button__inner {
+  background: var(--bg-button-primary) !important;
+  border-color: transparent !important;
+  color: var(--text-on-primary) !important;
+}
+
+/* Color Picker 颜色选择器 */
+.el-color-picker__trigger {
+  background: var(--bg-input) !important;
+  border-color: var(--border-input) !important;
+  border-radius: var(--radius-input) !important;
+}
+
+.el-color-picker__trigger:hover {
+  border-color: var(--border-hover) !important;
+}
+
+/* Tabs 标签页 */
+.el-tabs__item {
+  color: var(--text-muted) !important;
+}
+
+.el-tabs__item:hover {
+  color: var(--text-secondary) !important;
+}
+
+.el-tabs__item.is-active {
+  color: var(--accent) !important;
+}
+
+.el-tabs__active-bar {
+  background-color: var(--accent) !important;
+}
+
+/* Drawer 抽屉 */
+.el-drawer.ltr,
+.el-drawer.rtl,
+.el-drawer.ttb,
+.el-drawer.btt {
+  background: var(--bg-card) !important;
+  display: flex !important;
+  flex-direction: column !important;
+  height: 100% !important;
+}
+
+.el-drawer__header {
+  color: var(--text-primary) !important;
+  border-bottom: 1px solid var(--border-color) !important;
+  margin-bottom: 0 !important;
+  padding: 16px 20px !important;
+  flex-shrink: 0;
+}
+
+.el-drawer__title {
+  color: var(--text-primary) !important;
+}
+
+.el-drawer__close-btn {
+  color: var(--text-muted) !important;
+}
+
+.el-drawer__close-btn:hover {
+  color: var(--text-primary) !important;
+}
+
+.el-drawer__body {
+  padding: 0 !important;
+  flex: 1 1 auto !important;
+  overflow: hidden !important;
+  display: flex !important;
+  flex-direction: column !important;
+  min-height: 0 !important;
+  height: auto !important;
 }
 
 /* 遮罩层 */

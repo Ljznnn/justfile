@@ -183,3 +183,34 @@ declare global {
 }
 
 export {}
+
+// x-data-spreadsheet 类型声明
+declare module 'x-data-spreadsheet' {
+  interface SpreadsheetOptions {
+    showToolbar?: boolean
+    showBottomBar?: boolean
+    view?: {
+      height: () => number
+      width: () => number
+    }
+  }
+
+  interface SpreadsheetData {
+    styles?: any[]
+    rows?: any
+  }
+
+  interface SpreadsheetChangeData {
+    rows: any
+  }
+
+  class Spreadsheet {
+    constructor(selector: string, options?: SpreadsheetOptions)
+    static locale(lang: string, messages: any): void
+    loadData(data: SpreadsheetData): Spreadsheet
+    change(callback: (data: SpreadsheetChangeData) => void): Spreadsheet
+    validate(): Spreadsheet
+  }
+
+  export default Spreadsheet
+}

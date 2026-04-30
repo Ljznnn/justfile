@@ -75,6 +75,15 @@ export const useFeaturesStore = defineStore('features', () => {
       route: '/pdf/editor',
       category: 'office',
       supportedExtensions: ['.pdf']
+    },
+    {
+      id: 'line-chart',
+      name: '曲线图',
+      description: '导入表格数据生成曲线图',
+      icon: 'chart',
+      route: '/chart/line',
+      category: 'office',
+      supportedExtensions: ['.xls', '.xlsx', '.csv']
     }
   ])
 

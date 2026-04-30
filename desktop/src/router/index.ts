@@ -34,6 +34,11 @@ const router = createRouter({
       component: () => import('@/views/PdfEditor.vue')
     },
     {
+      path: '/chart/line',
+      name: 'LineChart',
+      component: () => import('@/views/LineChart.vue')
+    },
+    {
       path: '/share',
       name: 'FileShare',
       component: () => import('@/views/FileShare.vue')
